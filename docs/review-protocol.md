@@ -1,5 +1,5 @@
 # Review protocol
-How a PR goes from "ready" to "approved" in few rounds. Each part is marked **TODAY** (practised in the first project, by template or gate) or **PROPOSED** (framework map section 4, milestone F3; to be measured on a real PR before it becomes a rule).
+How a PR goes from "ready" to "approved" in few rounds. The precise loop (class records, reopen and escalation triggers, buckets) and its tool are in `docs/convergence-loop.md` and `tools/class-ledger/`. Each part is marked **TODAY** (practised in the first project, by template or gate) or **PROPOSED** (framework map section 4, milestone F3; to be measured on a real PR before it becomes a rule).
 
 ## Why
 On the worst PRs each round found a new instance of the same class (7 to 9 rounds). The loop was instance-chasing: the builder fixed the reported instance, the reviewer found the next (`rules/leak-classes.md`, C1).
