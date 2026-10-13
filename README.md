@@ -17,14 +17,14 @@ advance-po-reader (project)                 career-agent-hq (project)
 Each project lives on GitHub (private) with local copies, and runs on a pinned framework version. Projects never edit the framework.
 
 ## Who changes what
-- Only the PM (Carlos's voice in the chat) approves a change to the framework.
-- Builders and reviewers in projects log leaks and friction; the PM turns them into a framework change proposal (see `docs/change-proposals.md`) and approves or rejects it.
+- Only the Program Owner (Carlos) approves a change to the framework; the Orchestrator proposes.
+- Build Engineers and Reviewers in projects log leaks and friction; the Orchestrator turns them into a framework change proposal (see `docs/change-proposals.md`) and approves or rejects it.
 - New ideas from videos, repos and docs go through the intake pipeline in `ideas/README.md`.
 
 ## Layout
 | Folder | Holds | State |
 | --- | --- | --- |
-| `docs/` | the map, the change-proposal process, decisions | F0 done |
+| `docs/` | the map, roles and names, the change-proposal process, decisions | F0 done |
 | `ideas/` | ideas register and one note per source | started (pstack, advisor) |
 | `rules/` | the rules (from CONTEXT-RULES) with the enforcer of each | F1 |
 | `templates/` | task card, builder, reviewer, review round, ready-for-review | F1 |

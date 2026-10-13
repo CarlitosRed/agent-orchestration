@@ -3,3 +3,4 @@
 | --- | --- | --- |
 | 2026-10-13 | Framework is the main product; projects run on it; three private repos (agent-orchestration, advance-po-reader, career-agent-hq); only the PM approves framework changes; model agnostic; idea intake pipeline | Carlos in chat; drafts/framework-map-2026-10-13.md in project-notes |
 | 2026-10-13 | Every project lives on GitHub (private) with local copies | Carlos in chat; career-agent-hq was local only and was pushed (branch master, 49 files, scanned for key patterns: none) |
+| 2026-10-13 | Retire personal names (Claudio, PM 5, IT); use professional role names (Program Owner, Orchestrator, Platform Engineer, Build Engineer, Independent Reviewer, Release Manager, Verification Engineer, Research Analyst, Operations Clerk, Strategy Advisor); signatures become Role · Vendor; live PO gate keeps old signatures until F2 | Carlos in chat; docs/roles-and-names.md |
