@@ -18,7 +18,7 @@ Each project lives on GitHub (private) with local copies, and runs on a pinned f
 
 ## Who changes what
 - Only the Program Owner (Carlos) approves a change to the framework; the Orchestrator proposes.
-- Build Engineers and Reviewers in projects log leaks and friction; the Orchestrator turns them into a framework change proposal (see `docs/change-proposals.md`) and approves or rejects it.
+- Build Engineers and Reviewers in projects log leaks and friction; the Orchestrator turns them into a framework change proposal (see `docs/change-proposals.md`); the Program Owner approves or rejects it.
 - New ideas from videos, repos and docs go through the intake pipeline in `ideas/README.md`.
 
 ## Layout
