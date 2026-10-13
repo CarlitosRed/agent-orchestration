@@ -10,5 +10,6 @@ Carlos brings a source (link, repo, video, doc, screenshots) and says "read this
 | I-005 | 2026-10-13 | pstack `autopilot-full` | approval survives a rebase when the patch id is unchanged | later (gate change) | we re-reviewed after every merge of main | F2+ |
 | I-006 | 2026-10-13 | Claude Code advisor docs | pair a cheaper main model with an Opus advisor at plan lock, repeated error, before done | trial | costs tokens per call (full transcript re-read) | trial |
 | I-007 | 2026-10-13 | pstack `never-block-on-the-human` | proceed without asking on reversible work | partly | keep asking for Tier 3 and outward actions | rule note |
+| I-008 | 2026-10-13 | zhaoxuya520/reverse-skill (GitHub) | offensive-security/CTF skill collection (Burp MCP extension, sandboxed competition skills) | declined | off-domain for a software-delivery framework; nothing adopted | none |
 
 Notes: `2026-10-13-pstack-and-advisor.md`.

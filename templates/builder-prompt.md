@@ -8,7 +8,7 @@ Build: <one-sentence outcome>. Work in worktree <name>, branch <vendor-prefix>/<
 <context>
 Read first (max 3): <path>, <path>, <path>. Desk facts: <adapter desk.md path>; read it, do not rediscover them.
 Why it matters: <one sentence, the reason, not the history>.
-Plan go: <who posts the signed go on the PR>. Tier 2 and 3: if it is missing, post the plan under ## Plan and stop.
+Plan go: the Program Owner posts the signed go on the PR itself (Tier 2 and 3). If it is missing, post the plan under ## Plan and stop.
 </context>
 <scope>
 You may change: <paths>. Another agent owns the rest. Anything else: report it, do not edit it.
