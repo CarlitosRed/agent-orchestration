@@ -1,0 +1,37 @@
+name: gate pre-review check
+# Copy into a project's own .github/workflows/. Runs the gate dry run the moment a PR opens or changes,
+# reporting every rule except review and owner approval (R16, "process gates up front" - these are not
+# expected to hold yet at this point; they still get checked for real at merge time).
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  pre-review-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read this project's framework pin
+        id: pin
+        run: |
+          repo=$(grep '^repo:' .orchestration/framework.pin | sed 's/^repo: *//')
+          tag=$(grep '^tag:' .orchestration/framework.pin | sed 's/^tag: *//')
+          echo "repo=$repo" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      - name: Fetch the pinned framework (shallow, at the pinned tag only)
+        run: |
+          git clone --depth 1 --branch "${{ steps.pin.outputs.tag }}" "${{ steps.pin.outputs.repo }}" .framework-pin
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run the gate's pre-review check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python .framework-pin/tools/gate/gate.py --config .orchestration/gate.json check \
+            "${{ github.event.pull_request.number }}" --ignore review,owner

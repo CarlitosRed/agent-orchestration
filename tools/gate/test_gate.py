@@ -589,6 +589,31 @@ class ReviewTests(unittest.TestCase):
         self.assertTrue(rules(g.evaluate(p, c))["review"])
 
 
+# ================================================================ pre-review gate (R16 process gates up front)
+
+class PreReviewGateTests(unittest.TestCase):
+    """passed_ignoring lets a CI job check everything the gate can verify when a PR opens, before anyone has
+    reviewed it: every rule except review and owner, which are not expected to hold yet."""
+
+    def test_passes_ignoring_review_and_owner_when_everything_else_is_ready(self):
+        p = pr(comments=[go()])  # a plan go, but no approval yet
+        ev = g.evaluate(p, CFG)
+        self.assertFalse(ev["passed"], "no approval yet, so the full check must still fail")
+        self.assertFalse(rules(ev)["review"])
+        self.assertTrue(g.passed_ignoring(ev, "review", "owner"), g.format_report(ev, 7))
+
+    def test_still_fails_ignoring_review_and_owner_when_something_else_is_wrong(self):
+        p = pr(comments=[go()], body="no headings here")
+        ev = g.evaluate(p, CFG)
+        self.assertFalse(g.passed_ignoring(ev, "review", "owner"), g.format_report(ev, 7))
+
+    def test_tier_3_also_ignores_owner_not_just_review(self):
+        p = pr(labels=[{"name": "tier-3"}], comments=[go()])
+        ev = g.evaluate(p, CFG)
+        self.assertFalse(rules(ev)["owner"])
+        self.assertTrue(g.passed_ignoring(ev, "review", "owner"), g.format_report(ev, 7))
+
+
 class SameVendorOptionTests(unittest.TestCase):
     """A tier with cross_vendor false lets a LISTED same-vendor reviewer approve."""
 
