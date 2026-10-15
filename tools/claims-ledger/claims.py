@@ -10,9 +10,11 @@ Commands (the ledger file is always the first argument)
   init    FILE
   add     FILE --slug SLUG --doc PATH --line N --claim TEXT --condition TEXT --condition-pointer PATH:LINE
                 --exception TEXT [--states S1,S2,...] --by SIG
-  scan    FILE --doc PATH          every quantifier sentence in PATH with no matching row (human table)
-  check   FILE --doc PATH          exit 0 if every quantifier sentence in PATH has a row, else refuse (1),
-                                    naming each one
+  scan    FILE --doc PATH [--since REF]   every quantifier sentence in PATH with no matching row (human
+                                          table); --since REF scopes to lines changed since that git ref
+                                          (e.g. origin/main) instead of the whole file
+  check   FILE --doc PATH [--since REF]   exit 0 if every (scoped) quantifier sentence in PATH has a row,
+                                          else refuse (1), naming each one
 
 What it enforces (exit 1 and no write when refused)
   - A claim needs a non-empty --condition and --exception; a claim that restates "it does X" with no
@@ -24,8 +26,8 @@ What it enforces (exit 1 and no write when refused)
 
 What it cannot do: tell whether a condition or exception is actually true against the code (the reviewer's
 job, with condition_pointer as where to look); detect a quantifier sentence outside the fixed word list
-below (PROPOSED, tune after running on a real doc change); scope to only the lines a PR changed (scans the
-whole file - see docs/claims-ledger-design.md for what adopting this on an existing doc means).
+below (PROPOSED, tune after running on a real doc change); --since requires `path` to be inside a working
+git tree with `ref` reachable, and fails (exit 2) otherwise - there is no non-git fallback.
 
 Exit codes: 0 done, 1 refused by a rule or an unclaimed sentence found, 2 usage, file or format error.
 """
@@ -34,6 +36,7 @@ import datetime
 import json
 import os
 import re
+import subprocess
 import sys
 
 SCHEMA_VERSION = 1
@@ -122,33 +125,69 @@ def cmd_add(path, a):
     return f"added {a.slug}"
 
 
-def _unclaimed(data, doc):
+_HUNK_RE = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@")
+
+
+def changed_lines(doc, since):
+    """Line numbers in `doc`'s CURRENT on-disk content that are new or changed since git ref `since`,
+    parsed from `git diff --unified=0`'s hunk headers. Requires `doc` to be inside a git working tree with
+    `since` reachable; there is no non-git fallback (raises Broken instead)."""
+    doc_dir = os.path.dirname(os.path.abspath(doc)) or "."
+    try:
+        result = subprocess.run(
+            ["git", "diff", "--unified=0", since, "--", os.path.basename(doc)],
+            capture_output=True, text=True, cwd=doc_dir, check=False,
+        )
+    except OSError as exc:
+        raise Broken(f"cannot run git: {exc}") from exc
+    if result.returncode != 0:
+        raise Broken(f"git diff failed (ref {since!r}, doc {doc!r}): {result.stderr.strip()}")
+    lines = set()
+    for line in result.stdout.splitlines():
+        m = _HUNK_RE.match(line)
+        if m:
+            start = int(m.group(1))
+            count = int(m.group(2)) if m.group(2) is not None else 1
+            if count == 0:
+                continue  # a pure deletion at this point; nothing added to scan
+            lines.update(range(start, start + count))
+    return lines
+
+
+def _unclaimed(data, doc, only_lines=None):
     if not os.path.exists(doc):
         raise Broken(f"no such doc file: {doc}")
     claimed = {normalize(c["claim_text"]) for c in data["claims"] if c["doc"] == doc}
     with open(doc, encoding="utf-8") as fh:
         text = fh.read()
-    return [(ln, s) for ln, s in quantifier_sentences(text) if normalize(s) not in claimed]
+    found = quantifier_sentences(text)
+    if only_lines is not None:
+        found = [(ln, s) for ln, s in found if ln in only_lines]
+    return [(ln, s) for ln, s in found if normalize(s) not in claimed]
 
 
 def cmd_scan(path, a):
     data = load(path)
-    unclaimed = _unclaimed(data, a.doc)
+    only = changed_lines(a.doc, a.since) if a.since else None
+    unclaimed = _unclaimed(data, a.doc, only)
+    scope = f" (changed since {a.since})" if a.since else ""
     if not unclaimed:
-        return f"{a.doc}: every quantifier sentence has a claims-ledger row"
-    lines = [f"{a.doc}: {len(unclaimed)} unclaimed quantifier sentence(s)"]
+        return f"{a.doc}{scope}: every quantifier sentence has a claims-ledger row"
+    lines = [f"{a.doc}{scope}: {len(unclaimed)} unclaimed quantifier sentence(s)"]
     lines += [f"  line {ln}: {s}" for ln, s in unclaimed]
     return "\n".join(lines)
 
 
 def cmd_check(path, a):
     data = load(path)
-    unclaimed = _unclaimed(data, a.doc)
+    only = changed_lines(a.doc, a.since) if a.since else None
+    unclaimed = _unclaimed(data, a.doc, only)
+    scope = f" changed since {a.since}" if a.since else ""
     if unclaimed:
-        lines = [f"{len(unclaimed)} unclaimed quantifier sentence(s) in {a.doc}"]
+        lines = [f"{len(unclaimed)} unclaimed quantifier sentence(s) in {a.doc}{scope}"]
         lines += [f"  line {ln}: {s}" for ln, s in unclaimed]
         raise Refused("\n".join(lines))
-    return f"{a.doc}: clean"
+    return f"{a.doc}{scope}: clean"
 
 
 def parser():
@@ -177,9 +216,11 @@ def parser():
 
     sp = add_cmd("scan", cmd_scan)
     sp.add_argument("--doc", required=True)
+    sp.add_argument("--since", help="a git ref (e.g. origin/main); scope to lines changed since it")
 
     sp = add_cmd("check", cmd_check)
     sp.add_argument("--doc", required=True)
+    sp.add_argument("--since", help="a git ref (e.g. origin/main); scope to lines changed since it")
 
     return p
 
