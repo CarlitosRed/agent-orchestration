@@ -286,6 +286,23 @@ class Config:
                 value = {_key(r) for r in lst}
             setattr(self, field, value)
         self.same_vendor_reviewers = {_key(n) for n in _str_list(full, "same_vendor_reviewers")}
+        # Compensating control for a tier that allows same-vendor review (docs/vendor-count-modes.md,
+        # adapters/README.md "How many vendors"): a single listed identity (or the same name twice,
+        # which collapses to one key above) is self-approval wearing an allowlist, not independent
+        # review, and that tier must pull the owner in instead of silently trusting one same-vendor name.
+        same_vendor_tiers = [t for t in self.tiers if not t.cross_vendor and t.approvals > 0]
+        if same_vendor_tiers:
+            if len(self.same_vendor_reviewers) < 2:
+                raise ConfigError(
+                    "config 'same_vendor_reviewers' needs at least 2 distinct identities: tier(s) "
+                    f"{[t.label for t in same_vendor_tiers]} set cross_vendor: false with approvals > 0, "
+                    "and a single name (or one name listed twice) is self-approval, not review")
+            no_owner = [t.label for t in same_vendor_tiers if not t.owner_approval]
+            if no_owner:
+                raise ConfigError(
+                    f"config tier(s) {no_owner} set cross_vendor: false with approvals > 0 but "
+                    "owner_approval: false; a tier allowing same-vendor review must also require the "
+                    "owner's approval on that tier (the decided compensating control, docs/vendor-count-modes.md)")
 
         # signals
         if not isinstance(full["signature_pattern"], str):
