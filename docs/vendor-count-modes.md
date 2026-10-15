@@ -10,15 +10,15 @@ The mechanism exists and is tested, just never documented as a deliberate mode o
 ## Limitations to write down, explicitly, for a single-vendor project
 1. **No cross-vendor review signal.** The convergence loop's "a class raised by both vendors is top priority" (`docs/convergence-loop.md`) has no single-vendor equivalent; two same-vendor reviews agreeing is correlated evidence, not independent confirmation, and should never be reported or felt as the same strength of signal.
 2. **A vendor-specific outage is a single point of failure.** A real, already-logged example: Codex's Windows shell-exec bug (`vendors/codex.md`) had a working fallback (the manual paste-relay path, a different vendor doing the automated side) only because a second vendor existed. A single-vendor project has no vendor to route around an outage like that.
-3. **The compensating control is an open question, not decided here** - see below.
+3. **The compensating control is decided, not left open** - see below.
 
-## Open question for Carlos
-Whether a single-vendor project should be required to raise `owner_approval` at a lower tier than a multi-vendor project needs it - pulling the Program Owner in more often to structurally compensate for the missing cross-vendor check - or whether `same_vendor_reviewers`'s existing two-distinct-identities requirement is enough on its own, leaving the owner-approval threshold exactly where it is today (tier 3 only). This is a real tradeoff between safety and friction for anyone who actually runs single-vendor, and I don't want to guess which one you'd pick.
+## Decided (Carlos, 2026-10-15): raise the owner-approval tier
+Single-vendor projects pull the Program Owner in more often, as a deliberate structural compensating control for the missing cross-vendor check - not treated as an acceptable gap. Concretely: every tier that requires any `approvals` also sets `owner_approval: true`, not only the tier that would otherwise need it. Today's default tier shape has owner approval only at tier 3 (`docs/tiers-and-approvals.md`); a single-vendor project's tier 2 behaves like tier 3's owner-approval requirement instead. A docs-only tier with no approvals at all (tier 1) stays light and unaffected - there is nothing for the missing cross-vendor check to have caught there either.
 
-## Proposed shape, not yet built
-- `adapters/README.md` gets a new "How many vendors" section: two-or-more (today's docs apply as written, no change needed) and exactly-one (points here, names the limitations above, requires `same_vendor_reviewers` plus whatever the owner-approval answer above turns out to be).
-- `docs/roles-and-names.md`'s Independent Reviewer row and `docs/tiers-and-approvals.md`'s "one, from the other vendor" language get a one-line pointer to the single-vendor exception, not a rewrite - the two-vendor case stays the default, documented exactly as it is today.
-- A real third vendor, if wanted: `vendors/gemini.md`, built and live-smoke-tested the same way `vendors/codex.md` and `vendors/claude-code.md` were - a new profile, not a framework change, confirming the "two or more needs no new code" claim above on contact with reality.
+## Built
+- `adapters/README.md`: new "How many vendors" section, specifying the above as the actual requirement, not just a recommendation.
+- `docs/roles-and-names.md` and `docs/tiers-and-approvals.md`: one-line pointers to the single-vendor exception, added at the exact places that otherwise read as if two vendors were assumed. The two-vendor case is unchanged, documented exactly as it already was.
+- A real third vendor is still not built: `vendors/gemini.md` would need writing and live-smoke-testing the same way `vendors/codex.md` and `vendors/claude-code.md` were, to confirm "two-or-more needs no new code" on contact with reality rather than just on reading the existing code.
 
 ## Status
-Scoped only, 2026-10-15. `tools/gate/gate.py` is unchanged - the single-vendor mechanism it relies on was already built and tested, just never used or documented as this. The one real decision left is the compensating-control question above.
+Specified, 2026-10-15. `tools/gate/gate.py` is unchanged - every mechanism this relies on (`vendors` as an arbitrary-size map, vendor-count-agnostic `independent()`, `cross_vendor` + `same_vendor_reviewers`) already existed and was already tested before this doc was written. Nothing here is PROPOSED any more; a project adopting single-vendor mode today has a complete, decided spec to follow. The only thing not done is proving the three-or-more case with a real third vendor profile.

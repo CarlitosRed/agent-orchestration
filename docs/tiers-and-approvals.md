@@ -11,6 +11,8 @@ Every PR carries exactly one tier label. The gate raises a label that is too low
 | 3 | Money and trust: the protected paths (instruction and roles files, CI and hooks, the gate, paid-call code, migrations, scripts) | yes, signed, on the PR | one, from the other vendor | yes, `Approved at <full sha>`, typed by the owner; no agent ever writes it | full protocol, even for "just docs" |
 | 4 | Billing, spend limits, credentials, production, deleting data | not a PR | not a PR | humans only | outside the agents |
 
+**Single-vendor projects:** "from the other vendor" above assumes two or more vendors, today's default. A project running exactly one vendor also needs the Program Owner's line at Tier 2, not only Tier 3 - see `adapters/README.md`'s "How many vendors".
+
 ## How a change moves
 Card → draft PR with `## Plan` only → signed `go` on this PR → build → `## Evidence` and `## Cost`, ready-for-review → reviewer's `Approved at <full sha>` → owner's line on Tier 3 → merge by the author's vendor through the gate → handoff note; the Orchestrator updates the state file and decision log.
 
