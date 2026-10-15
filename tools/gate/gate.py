@@ -865,6 +865,15 @@ def _finish(results, notes, head, tier, approvers, owner_ok, a_vendor, branch, p
     }
 
 
+def passed_ignoring(ev, *ignore):
+    """Whether every rule not named in ignore passed. For a pre-review CI gate (R16 "process gates up
+    front"): check everything the gate can verify at PR-open time, without needing review or owner
+    approval to exist yet. Typical call: passed_ignoring(ev, "review", "owner")."""
+    ignored = set(ignore)
+    relevant = [r for r in ev["results"] if r["rule"] not in ignored]
+    return all(r["ok"] for r in relevant)
+
+
 def format_report(ev, number):
     lines = [f"PR #{number}  head {ev['head'][:8]}  branch {ev['branch']}  tier {ev['tier_label']}  "
              f"author vendor {ev['author_vendor']}"]
@@ -876,9 +885,13 @@ def format_report(ev, number):
     return "\n".join(lines)
 
 
-def cmd_check(gh, cfg, number, out=print):
+def cmd_check(gh, cfg, number, out=print, ignore=()):
     ev = evaluate(fetch_pr(gh, cfg, number), cfg)
     out(format_report(ev, number))
+    if ignore:
+        ok = passed_ignoring(ev, *ignore)
+        out(f"PRE-REVIEW RESULT (ignoring {', '.join(ignore)}): " + ("PASS" if ok else "FAIL"))
+        return 0 if ok else 1
     return 0 if ev["passed"] else 1
 
 
@@ -1065,6 +1078,8 @@ def main(argv=None):
     sub = ap.add_subparsers(dest="cmd", required=True)
     c = sub.add_parser("check")
     c.add_argument("pr", type=int)
+    c.add_argument("--ignore", default="", help="comma-separated rule names to exclude from pass/fail "
+                   "(e.g. review,owner for a pre-review CI gate run before anyone has reviewed)")
     m = sub.add_parser("merge")
     m.add_argument("pr", type=int)
     m.add_argument("--as", dest="merged_as", required=True,
@@ -1082,7 +1097,8 @@ def main(argv=None):
     try:
         cfg = load_config(args.config or default_config_path())
         if args.cmd == "check":
-            return cmd_check(run_gh, cfg, args.pr)
+            ignore = [r for r in args.ignore.split(",") if r]
+            return cmd_check(run_gh, cfg, args.pr, ignore=ignore)
         if args.cmd == "merge":
             return cmd_merge(run_gh, cfg, args.pr, args.merged_as, args.dry_run)
         if args.cmd == "audit":
