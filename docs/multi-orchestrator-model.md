@@ -12,8 +12,9 @@ A project Orchestrator never edits the framework repo. It logs a leak or a wish 
 
 ## How they talk
 - **Framework down to projects:** a tagged framework version (`framework.pin` in the project's `.orchestration/` folder, see `adapters/README.md`). A project upgrades by its own PR, on its own schedule.
-- **Projects up to framework:** leaks and friction, written in the project's own leak log, with evidence. The Framework Orchestrator reads them, not the other way around; it does not reach into a project to fix product code.
-- **Program Owner across chats:** carries context between chats by eye (reading one chat's state file before opening another) or by pasting a short status. No chat auto-reads another's transcript.
+- **Projects up to framework:** leaks and friction, written in the project's own leak log, with evidence. This stays the durable record even when a direct message also announces it; the Framework Orchestrator does not reach into a project to fix product code.
+- **Direct chat-to-chat messages (Carlos, 2026-10-14):** when two orchestrator chats are live sessions on the same machine, they may message each other directly for status and feedback (a framework tag landed, a trial's outcome, a question about a logged leak), instead of only relaying through Carlos. This is a faster notification channel, not a new power: it never changes who may edit which repo (still one chat per repo, never cross-edit), a framework change still needs the Program Owner's approval, and a project PR still needs that project's own process. A chat message is not a substitute for writing the leak or decision down; the log is still what the next session (or the Program Owner) reads to catch up.
+- **Program Owner across chats:** can still carry context by eye (reading one chat's state file before opening another, or pasting a short status) whenever a direct message isn't available or a chat isn't live. No chat reads another's full transcript; only the messages the two chats actually exchange.
 
 ## Starting a chat
 Each repo keeps its own resume prompt at its root (or in `project-notes` for the PO Reader chat, matching its existing pattern) so a fresh chat picks up instantly: `RESUME-framework-orchestrator.md` here, and each project's own resume file in its own tree.
