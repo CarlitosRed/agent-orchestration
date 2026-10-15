@@ -26,6 +26,9 @@ Runs a code review directly against the repo, no human relay needed. Confirmed t
 ## Smoke test, 2026-10-14
 `codex exec --skip-git-repo-check --sandbox read-only --output-last-message last.txt --json "Reply with exactly the single word OK and nothing else."` returned `OK` in both the JSONL stream and `last.txt`, with a real usage block. Proves: non-interactive execution works, auth works without extra setup, `--output-last-message` writes correctly, `--json` reports real token counts.
 
+## Known failure on this desk, confirmed reproducible (2026-10-14)
+Direct shell command execution fails 100% of the time (2/2 attempts, a trivial file write and a bare `git --version`), both with the same error: `Failed to create unified exec process: helper_unknown_error: setup refresh had errors`. The file-write task still completed because Codex had an MCP server (`node_repl`) available as a fallback and routed around the shell entirely; `git --version` had no such fallback and returned empty stdout. **Any real task needing an actual shell command (tests, git, a build step, a package manager) will hit this wall with no workaround.** `codex doctor` already named a likely cause: Microsoft Defender exclusions for Codex are unverified on this desk (signed Codex app, `codex.exe`, `codex-windows-sandbox-setup.exe`, `codex-command-runner.exe`, `codex-code-mode-host.exe`); the sandbox backend is also reported as `elevated`. Not yet fixed or root-caused - do not treat the automated dispatch path as ready for a real coding task until this clears.
+
 ## Not yet confirmed
 - Whether `codex review`'s output is structured enough to feed directly into this framework's finding format (`docs/convergence-loop.md`'s finding record) or needs a parsing step.
 - Behavior on a desk without an existing desktop-app login (whether `codex login` is interactive-only or scriptable).
