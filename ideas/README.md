@@ -11,6 +11,12 @@ Carlos brings a source (link, repo, video, doc, screenshots) and says "read this
 | I-006 | 2026-10-13 | Claude Code advisor docs | pair a cheaper main model with an Opus advisor at plan lock, repeated error, before done | trial | costs tokens per call (full transcript re-read) | trial |
 | I-007 | 2026-10-13 | pstack `never-block-on-the-human` | proceed without asking on reversible work | partly | keep asking for Tier 3 and outward actions | rule note |
 | I-008 | 2026-10-13 | zhaoxuya520/reverse-skill (GitHub) | offensive-security/CTF skill collection (Burp MCP extension, sandboxed competition skills) | declined | off-domain for a software-delivery framework; nothing adopted | none |
+| I-009 | 2026-10-14 | pstack `no-comments` + `comment-sicko` | adversarial comment-pruning subagent with a 5-item exception list | trial | sharpens our own "default to no comments" house rule into an enforced review pass instead of a prose reminder | candidate skill, untrialed |
+| I-010 | 2026-10-14 | pstack `swarm` | drop a worker result missing its required evidence, respawn once; a gap never counts as a pass | trial | sharper version of what class-ledger already half-does for verify-class | candidate for convergence loop / class-ledger |
+| I-011 | 2026-10-14 | pstack `poteto-mode` subagent rules | fresh subagent by default; resume only for costly local state (checkout, uncommitted changes, a running process) | trial | a resumed agent can silently drop an earlier directive, which looks like a repeated-instance leak | candidate protocol note |
+| I-012 | 2026-10-14 | pstack `eval` playbook | blinded before/after test of a skill or prompt change | later | bigger lift than a rule addition; revisit at F6 | none yet |
+| I-013 | 2026-10-14 | pstack `unslop` | numbered checklist of AI-writing tells | trial | low risk; fits PR-description and decisions.md writing guidance | none yet |
+| I-014 | 2026-10-14 | pstack `benchmark-checklist` | vet a measured number (limiter, tuning, repeat runs, relevance) before reporting it | later | relevant once F3's metrics goal produces real numbers | none yet |
 | I-015 | 2026-10-14 | a video Carlos watched (no link given) | keep skills/tools as a name until triggered; keep a re-sent prompt's prefix stable for provider-side caching | adopt | matches this session's own deferred-tool mechanism and documented prompt caching; video itself unverified | R26, R27 |
 
-Notes: `2026-10-13-pstack-and-advisor.md`, `2026-10-14-context-and-cache-efficiency.md`.
+Notes: `2026-10-13-pstack-and-advisor.md`, `2026-10-14-pstack-no-comments-and-swarm.md`, `2026-10-14-context-and-cache-efficiency.md`.

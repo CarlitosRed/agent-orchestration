@@ -44,6 +44,9 @@ After a reviewer returns and before the builder starts, the Orchestrator sorts e
 - **PROPOSED: dual-vendor parallel round 1.** Two reviewers from different vendors start on the same head at the same time (`templates/reviewer-prompt-round1-parallel.md`) and do not see each other's work. The Orchestrator merges their lists (`templates/findings-merge.md`): a class both raised is top priority; a class one raised is normal priority; an explicit contradiction is a disagreement the Orchestrator resolves before sorting. The approval still comes only from the vendor that did not author the PR; the author's vendor is an extra opinion.
 - **LEDGER.** The same instance raised by both in the same round counts once and records both vendors (`both_vendor_classes`). Two reviewer slugs for one class are joined with `merge-classes` (with a reason).
 
+## Parallel dispatch discipline (idea I-010)
+Whenever the Orchestrator fans out more than one worker on the same brief (dual-vendor round 1, an escalation sweep, `maintain-verification-skill`'s source wave), a worker's result that omits the evidence its own brief required (the sha it worked from, the method and sample it used, or whatever else the brief named) does not count as that worker's result. Respawn that one worker once with the same brief restated; do not patch the gap by hand or by asking a different worker to cover it. A second miss is recorded as a **gap**, named in the report next to the workers that did return. A gap is never silently treated as a pass, a clean result, or a covered slice; for coverage work, every required slice still needs a result before the dispatch counts as done. **PROPOSED**, not yet measured on a real PR.
+
 ## Closing a class
 A class is closed only by a script-provable sweep, never by "fixed" in a comment. The closer posts:
 1. the sweep command, which enumerates the generator's whole space (not the reported instances);
