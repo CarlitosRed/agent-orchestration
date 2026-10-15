@@ -38,7 +38,7 @@ Raise order: protected paths first (to `protected_tier` if lower), then `allowed
 | `repo` | `""` | `owner/name`; empty = ask `gh` from the current folder. |
 | `base` | `"main"` | The only base branch the gate merges into. |
 | `roles` | the nine agent roles of `docs/roles-and-names.md` (not Program Owner) | Role names accepted before the dot in a new-format signature. |
-| `legacy_signers` | `{}` | Old-format first names -> vendor id, e.g. `{"Scout": "alpha"}` reads `**Scout · PR review:**` as vendor `alpha`. Remove when the project has cut over. |
+| `legacy_signers` | `{}` | Old-format first names -> vendor id, e.g. `{"Scout": "alpha"}` reads `**Scout · PR review:**` as vendor `alpha`. A project mid-migration removes these once it has cut over; a project that never adopts `<Role> · <Vendor>` signatures at all keeps them indefinitely - "legacy" names the signature format, not a required transition (found 2026-10-15: advance-po-reader has used only this format since before the framework existed, and has no plan to change it). |
 | `approver_roles` | `null` (any role) | If a list, only new-format signers with these roles count as approvals and plan go. Legacy signers carry no role and are not restricted. |
 | `merger_roles` | `null` (any role) | If a list, `merge --as` accepts only these roles (owner always allowed). |
 | `same_vendor_reviewers` | `[]` | Full signatures that may approve their own vendor's work on tiers with `cross_vendor: false`. |
