@@ -62,6 +62,7 @@ CFG = cfg()
 REVIEW = f"Independent Reviewer {SEP} Alpha"       # alpha, new format
 LEGACY_REVIEW = f"Atlas {SEP} PR review"            # alpha, legacy format
 SAME_REVIEW = f"Independent Reviewer {SEP} Beta"    # beta: same vendor as the author
+SAME_REVIEW_2 = f"Verification Engineer {SEP} Beta"  # beta: a second, distinct same-vendor identity
 AUTHOR = f"Build Engineer {SEP} Beta"               # beta (branch beta/...)
 MERGER = f"Release Manager {SEP} Beta"
 OWNER = "Program Owner"
@@ -615,18 +616,23 @@ class PreReviewGateTests(unittest.TestCase):
 
 
 class SameVendorOptionTests(unittest.TestCase):
-    """A tier with cross_vendor false lets a LISTED same-vendor reviewer approve."""
+    """A tier with cross_vendor false lets a LISTED same-vendor reviewer approve - but only with
+    the compensating control in place: 2+ distinct identities and owner_approval on that tier
+    (docs/vendor-count-modes.md). Config load refuses the tier without either half."""
 
     def c(self):
         tiers = json.loads(json.dumps(RAW["tiers"]))
         tiers[1]["cross_vendor"] = False
-        return cfg(tiers=tiers, same_vendor_reviewers=[SAME_REVIEW])
+        tiers[1]["owner_approval"] = True
+        return cfg(tiers=tiers, same_vendor_reviewers=[SAME_REVIEW, SAME_REVIEW_2])
 
     def test_off_by_default(self):
         self.assertFalse(g.evaluate(pr(comments=[go(SAME_REVIEW), approve(SAME_REVIEW)]), CFG)["passed"])
 
     def test_listed_reviewer_counts_at_the_chosen_tier(self):
-        ev = g.evaluate(pr(comments=[go(SAME_REVIEW), approve(SAME_REVIEW)]), self.c())
+        p = pr(comments=[go(SAME_REVIEW), approve(SAME_REVIEW),
+                          comment(OWNER, f"Approved at `{HEAD}`", "2026-10-04T12:00:00Z")])
+        ev = g.evaluate(p, self.c())
         self.assertTrue(ev["passed"], g.format_report(ev, 7))
 
     def test_an_unlisted_signer_of_the_same_vendor_never_counts(self):
@@ -636,6 +642,33 @@ class SameVendorOptionTests(unittest.TestCase):
         p = pr(labels=[{"name": "tier-3"}], comments=[go(SAME_REVIEW), approve(SAME_REVIEW),
                                                       comment(OWNER, f"Approved at `{HEAD}`", "2026-10-04T12:00:00Z")])
         self.assertFalse(rules(g.evaluate(p, self.c()))["review"])
+
+    def test_a_single_same_vendor_reviewer_is_refused_at_load(self):
+        tiers = json.loads(json.dumps(RAW["tiers"]))
+        tiers[1]["cross_vendor"] = False
+        tiers[1]["owner_approval"] = True
+        with self.assertRaises(g.ConfigError):
+            cfg(tiers=tiers, same_vendor_reviewers=[SAME_REVIEW])
+
+    def test_the_same_name_listed_twice_is_still_one_identity_and_is_refused(self):
+        tiers = json.loads(json.dumps(RAW["tiers"]))
+        tiers[1]["cross_vendor"] = False
+        tiers[1]["owner_approval"] = True
+        with self.assertRaises(g.ConfigError):
+            cfg(tiers=tiers, same_vendor_reviewers=[SAME_REVIEW, SAME_REVIEW.upper()])
+
+    def test_cross_vendor_false_without_owner_approval_is_refused_at_load(self):
+        tiers = json.loads(json.dumps(RAW["tiers"]))
+        tiers[1]["cross_vendor"] = False
+        with self.assertRaises(g.ConfigError):
+            cfg(tiers=tiers, same_vendor_reviewers=[SAME_REVIEW, SAME_REVIEW_2])
+
+    def test_cross_vendor_false_with_zero_approvals_needs_neither(self):
+        # A tier with no review requirement at all (approvals: 0) has nothing for the compensating
+        # control to compensate for - cross_vendor is moot there, so it is not forced to list it.
+        tiers = json.loads(json.dumps(RAW["tiers"]))
+        tiers[0]["cross_vendor"] = False
+        self.assertEqual(cfg(tiers=tiers).same_vendor_reviewers, set())
 
 
 class PlanTests(unittest.TestCase):
@@ -1445,8 +1478,10 @@ class MergeTests(unittest.TestCase):
     def test_a_reviewer_who_approved_cannot_merge(self):
         tiers = json.loads(json.dumps(RAW["tiers"]))
         tiers[1]["cross_vendor"] = False
-        c = cfg(tiers=tiers, same_vendor_reviewers=[SAME_REVIEW])
-        gh = FakeGH(pr(comments=[go(SAME_REVIEW), approve(SAME_REVIEW)]))
+        tiers[1]["owner_approval"] = True
+        c = cfg(tiers=tiers, same_vendor_reviewers=[SAME_REVIEW, SAME_REVIEW_2])
+        gh = FakeGH(pr(comments=[go(SAME_REVIEW), approve(SAME_REVIEW),
+                                  comment(OWNER, f"Approved at `{HEAD}`", "2026-10-04T12:00:00Z")]))
         with self.assertRaises(g.GateError):
             self.run_merge(gh, merged_as=SAME_REVIEW.lower(), c=c)
         self.assertEqual(gh.merged(), [])
