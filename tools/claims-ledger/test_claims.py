@@ -5,6 +5,7 @@ Run:  python -m unittest discover -s tools/claims-ledger -p "test_claims.py" -v
 import io
 import os
 import shutil
+import subprocess
 import tempfile
 import unittest
 
@@ -173,6 +174,66 @@ class ScanAndCheckTests(Base):
         code, out, err = self.run_cli("check", "--doc", os.path.join(self.dir, "missing.md"))
         self.assertEqual(code, 2)
         self.assertIn("no such doc file", err)
+
+
+class GitScopedTests(Base):
+    """--since REF: scope detection to lines changed since a git ref, not the whole file. Real git repos,
+    throw-away temp folders - no mocking git itself."""
+
+    def git(self, *args):
+        return subprocess.run(["git", *args], cwd=self.dir, capture_output=True, text=True, check=True)
+
+    def setUp(self):
+        super().setUp()
+        self.git("init", "-q")
+        self.git("config", "user.email", "test@example.com")
+        self.git("config", "user.name", "Test")
+
+    def commit(self, message="commit"):
+        self.git("add", "-A")
+        self.git("commit", "-q", "-m", message)
+
+    def test_changed_lines_empty_when_nothing_changed(self):
+        d = self.doc("docs/x.md", "Plain line one.\nPlain line two.\n")
+        self.commit()
+        self.assertEqual(C.changed_lines(d, "HEAD"), set())
+
+    def test_changed_lines_finds_an_added_line(self):
+        d = self.doc("docs/x.md", "Plain line one.\n")
+        self.commit()
+        with open(d, "a", encoding="utf-8") as f:
+            f.write("A new line that is always true.\n")
+        self.assertEqual(C.changed_lines(d, "HEAD"), {2})
+
+    def test_changed_lines_bad_ref_is_an_error(self):
+        d = self.doc("docs/x.md", "Plain line one.\n")
+        self.commit()
+        with self.assertRaises(C.Broken):
+            C.changed_lines(d, "not-a-real-ref")
+
+    def test_check_since_ignores_a_preexisting_unclaimed_sentence(self):
+        d = self.doc("docs/x.md", "This always was unclaimed and never fixed.\nPlain line.\n")
+        self.commit()
+        self.init()
+        # no claim added - this sentence predates the ref, so --since must not flag it
+        with open(d, "a", encoding="utf-8") as f:
+            f.write("Plain unrelated line.\n")
+        self.ok("check", "--doc", d, "--since", "HEAD")
+
+    def test_check_since_still_catches_a_newly_added_unclaimed_sentence(self):
+        d = self.doc("docs/x.md", "Plain line one.\n")
+        self.commit()
+        self.init()
+        with open(d, "a", encoding="utf-8") as f:
+            f.write("This is a new claim that is always true.\n")
+        err = self.refused("check", "--doc", d, "--since", "HEAD")
+        self.assertIn("always true", err)
+
+    def test_check_without_since_still_scans_the_whole_file(self):
+        d = self.doc("docs/x.md", "This always was unclaimed and never fixed.\n")
+        self.commit()
+        self.init()
+        self.refused("check", "--doc", d)  # no --since: whole-file behavior unchanged
 
 
 if __name__ == "__main__":

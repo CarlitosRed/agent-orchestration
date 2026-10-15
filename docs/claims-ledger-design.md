@@ -1,4 +1,4 @@
-# Claims ledger: scope (2026-10-15)
+# Claims ledger: scope (2026-10-15, updated same day with --since)
 C2's own definition (`rules/leak-classes.md`) is more concrete than the one-line Promote-next row suggested. Scoping it split the ask into one genuinely tractable half and one that is not a framework-level problem at all.
 
 ## The original ask, split in two
@@ -15,7 +15,7 @@ C2's own definition (`rules/leak-classes.md`) is more concrete than the one-line
 A claim is matched to its doc by **sentence text** (whitespace-normalized), not line number - line numbers drift every time something is edited above a claim; text is what the claim is actually about. `line` is stored as a pointer for a human to find it, never used for matching.
 
 ## What's deliberately out of scope, and why
-1. **Whole file, not a diff.** `scan`/`check` read the whole doc, not just changed lines. The real CI ask ("every CHANGED sentence needs a row") needs a git diff, which was cut from this pass to keep the tool itself correct and tested first - same order F6's other builds followed (`passed_ignoring` before the CI template, `ledger.py check` before wiring it in). Adopting this on an existing doc with years of unclaimed prose means either a baseline/grandfather step or accepting a large one-time `add` backlog; not solved here.
+1. ~~Whole file, not a diff~~ - built 2026-10-15: `--since REF` scopes `scan`/`check` to lines changed since a git ref (`changed_lines()`, parsed from `git diff --unified=0`'s hunk headers), so a pre-existing unclaimed sentence elsewhere in the file is left alone and only what the PR actually touches is checked. 6 new tests, real git repos, no mocking. No non-git fallback - `--since` fails outright if `doc` isn't in a git working tree with `REF` reachable. Adopting this on an existing doc still means a one-time choice the first time: run without `--since` once to see the real backlog, or start clean with `--since` from day one and accept pre-existing unclaimed prose as untouched debt.
 2. **The quantifier word list (`always, never, only, same, new, every, any, guaranteed, must, cannot`) is a first cut from C2's own text plus close synonyms**, not a closed, tested-correct set - same status as class-ledger's `SIMILARITY_THRESHOLD`: PROPOSED, tune after it runs on a real doc change and either over- or under-flags.
 3. **Whether a claim should ever expire or get re-verified automatically** (the code at `condition_pointer` changed since the claim was added) - not tracked; a stale pointer is currently a silent risk, same as a stale comment would be.
 
