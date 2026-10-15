@@ -519,5 +519,38 @@ class OutputTests(Base):
         self.assertIn("café", self.raw().decode("utf-8"))
 
 
+class CheckTests(Base):
+    """The ready-for-review / CI gate (rank 1 in rules/README.md's Promote next table): exit_ready was
+    already computed by report --json, but nothing refused a PR for being not exit_ready. check does."""
+
+    def test_passes_on_a_clean_ledger(self):
+        self.init()
+        out = self.ok("check")
+        self.assertIn("exit ready: yes", out)
+
+    def test_refuses_an_unsorted_blocking_class(self):
+        self.init()
+        self.found("dual-token", gen=GEN)
+        err = self.refused("check")
+        self.assertIn("dual-token", err)
+
+    def test_refuses_a_reopened_class(self):
+        self.init()
+        self.found("dual-token", gen=GEN)
+        self.run_cli("sort", "dual-token", "--bucket", "act", "--by", ORCH)
+        self.close("dual-token")
+        self.found("dual-token", by=REV_B)
+        self.refused("check")
+
+    def test_passes_once_the_only_class_is_closed_and_not_reopened(self):
+        self.init()
+        self.found("dual-token", gen=GEN)
+        self.run_cli("sort", "dual-token", "--bucket", "act", "--by", ORCH)
+        self.close("dual-token")
+        self.run_cli("new-round", "--head", "b" * 40)
+        out = self.ok("check")
+        self.assertIn("exit ready: yes", out)
+
+
 if __name__ == "__main__":
     unittest.main()

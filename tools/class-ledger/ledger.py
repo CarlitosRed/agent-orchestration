@@ -15,6 +15,8 @@ Commands (the ledger file is always the first argument)
   merge-classes FILE SRC --into DST --by SIG --reason TEXT
   status       FILE                 short human table
   report       FILE [--json]        metrics (JSON) plus the table
+  check        FILE                 exit 0 if exit_ready, else exit 1 (refused) naming what blocks it - the
+               ready-for-review / CI gate for R18+R16's class-sweep rule
 
 What it enforces (exit 1 and no write when refused)
   - A finding on a CLOSED class reopens it (a failed builder sweep) and counts in reopen_count. It is never a new class.
@@ -467,6 +469,17 @@ def cmd_report(path, a):
     return text + "\n\n" + table(data) + "\n\n" + summary(m)
 
 
+def cmd_check(path, a):
+    """Exit 0 and print the summary when exit_ready; otherwise refuse (exit 1) with the same summary as the
+    reason, so a CI log or a ready-for-review check shows exactly which class is still blocking."""
+    data = load(path)
+    m = metrics(data)
+    text = summary(m)
+    if not m["exit_ready"]:
+        raise Refused(text)
+    return text
+
+
 # ---------------------------------------------------------------- CLI
 
 def parser():
@@ -519,6 +532,7 @@ def parser():
     add("status", cmd_status)
     sp = add("report", cmd_report)
     sp.add_argument("--json", action="store_true")
+    add("check", cmd_check)
     return p
 
 
