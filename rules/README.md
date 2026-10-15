@@ -40,5 +40,5 @@ Done, 2026-10-15, each checked against the real code before being marked done ra
 
 | rank | rule | leaks | enforcer to build | level |
 | --- | --- | --- | --- | --- |
-| 1 | Alias-type classes need one probe per alias kind before the word "alias" may appear | C1 (part of L1, L13, L24, L25, L30) | the remaining, unbuilt half of the old rank-1 row; a lint or ledger check over a finding's generator text, not yet designed | controller script or gate check |
+| 1 | Multi-kind classes need one probe per declared kind before closing (generalized from "alias-type"; design in `docs/multi-kind-class-design.md`) | C1 (part of L1, L13, L24, L25, L30) | `close-class` takes one sweep per declared kind and refuses a gap; `add-finding --kinds` declares them. Designed 2026-10-15, not built. | ledger check |
 | 2 | Claims ledger (R16 line 4) | C2 (L1, L6, L8, L14, L15, L20, L23: 6 to 7 docs rounds) | CI check that every changed behavioural sentence in docs has a ledger row (claim, condition, exception, pinned line); text that restates code facts is generated from parsed triples, not hand written | CI check |
