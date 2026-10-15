@@ -6,7 +6,9 @@ Confirmed on Carlos's desk, 2026-10-14 (Windows, `@openai/codex` npm package, co
 - Auth on this desk: shared with the Codex desktop app (`~/.codex/auth.json`, `stored ChatGPT tokens: true`). No separate API key was needed here; a different desk may need its own `codex login`.
 
 ## Preflight, every time, before dispatching
-`codex doctor --summary` must report `0 fail`. Confirmed failure mode on this desk: `CODEX_HOME` and the worktree need real headroom (warn under 5 GiB free, fail under 1 GiB) - a near-full system drive fails this outright. Do not dispatch on a failing doctor result; surface it instead (same rule as a failing doctor in `skills/create-verification-skill`).
+`codex doctor --summary` must report `0 fail` - with one named exception below. Confirmed failure mode on this desk: `CODEX_HOME` and the worktree need real headroom (warn under 5 GiB free, fail under 1 GiB) - a near-full system drive fails this outright. Do not dispatch on a failing doctor result; surface it instead (same rule as a failing doctor in `skills/create-verification-skill`).
+
+**Named exception: a `danger-full-access` review dispatch ignores the sandbox-provisioning fail only.** `codex doctor` reports `sandbox provisioning: failed` (the "Known failure" below) on any desk that hits the upstream Windows bug, regardless of what is about to run. But `codex review` under `sandbox_mode = "danger-full-access"` never provisions a sandbox at all (line 32's caveat) - it cannot hit a bug in a step it skips. The 2026-10-15 smoke test ran clean under exactly this combination. So: before a `danger-full-access` review dispatch, a doctor report of `sandbox provisioning: failed` alone does not block - every other fail (disk headroom, auth, anything not already named in "Known failure") still blocks exactly as the zero-fail rule says. This exception does not extend to build dispatch (`codex exec`): that path never runs under `danger-full-access` (line 15), so it gets no carve-out and the zero-fail rule applies to it without exception.
 
 ## Non-interactive build dispatch
 ```
@@ -21,7 +23,7 @@ codex exec [PROMPT] -C <working dir> -s <read-only|workspace-write|danger-full-a
 codex review --base <branch>
 codex review --commit <sha>
 ```
-Runs a code review directly against the repo, no human relay needed. **Live-smoke-tested 2026-10-15** (below) - real, working, confirmed end to end, not just documented in `--help`. **Only confirmed under `sandbox_mode = "danger-full-access"`** (this desk's configured default, `~/.codex/config.toml`) - not yet tried under `workspace-write` or `elevated`, which is where the known failure below lives.
+Runs a code review directly against the repo, no human relay needed. **Live-smoke-tested 2026-10-15** (below) - real, working, confirmed end to end, not just documented in `--help`. **Only confirmed under `sandbox_mode = "danger-full-access"`** (this desk's configured default, `~/.codex/config.toml`) - not yet tried under `workspace-write` or `elevated`, which is where the known failure below lives. Preflight: see the named exception above - a doctor report of `sandbox provisioning: failed` alone does not block this specific dispatch shape.
 
 ## Smoke test, 2026-10-14
 `codex exec --skip-git-repo-check --sandbox read-only --output-last-message last.txt --json "Reply with exactly the single word OK and nothing else."` returned `OK` in both the JSONL stream and `last.txt`, with a real usage block. Proves: non-interactive execution works, auth works without extra setup, `--output-last-message` writes correctly, `--json` reports real token counts.
