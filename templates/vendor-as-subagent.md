@@ -26,4 +26,4 @@ The Program Owner is the relay: they paste a one-line launcher into that vendor'
 - The author never reviews its own work.
 - For important tasks, check the model that really ran on the vendor's usage page; self-reported model names have been wrong.
 - If this vendor runs out of allowance, the Orchestrator keeps running and queues the task until the reset.
-- The Orchestrator's own helpers obey the usage ceilings in the adapter (R14). The automated path's `--json` output (Codex: `turn.completed.usage`) is a real per-call token count, not yet wired into a ledger; capture it in the audit notes file either way.
+- The Orchestrator's own helpers obey the usage ceilings in the adapter (R14): `tools/usage-ledger/usage.py log --vendor --role --task` after every launch (a resume logs its own entry too), `check --window 5h|7d --ceiling N` before the next one - a refusal means queue the task, not launch anyway. The automated path's `--json` output (Codex: `turn.completed.usage`) is a real per-call token count and a reasonable `--cost`; a project that only wants launch counts can leave `--cost` at its default of 1.
