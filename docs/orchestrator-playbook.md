@@ -6,11 +6,11 @@ The Orchestrator plans, routes work to roles, verifies from the repo host, runs 
 2. For each open PR: base branch and head against the state file.
 3. For each open branch: how far it is ahead and behind main (`git rev-list --left-right --count origin/main...<branch>`).
 4. Read the newest handoff files and new reports in the audits folder.
-5. Check usage against the launch ceilings.
+5. Check usage against the launch ceilings (`tools/usage-ledger/usage.py check --window 5h|7d --ceiling N`).
 Report to the Program Owner in the same message: any PR whose base is not main, any branch behind main, any merge the notes do not know about.
 
 ## Launching helpers (R14)
-- Launch only below the ceilings in the adapter's `roles.md` (five-hour and weekly percent); check usage first. A resumed helper counts as a launch.
+- Launch only below the ceilings in the adapter's `roles.md` (five-hour and weekly percent); `usage.py check` first, `usage.py log` right after (the resumed helper logs its own entry too - it counts as a launch).
 - Another vendor's agent is launched through the owner (`templates/vendor-as-subagent.md`).
 - If a vendor is out of allowance, keep running and queue its task until the reset; ask the owner before any one-time exception.
 

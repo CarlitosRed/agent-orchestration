@@ -7,7 +7,7 @@ Each project keeps a cost ledger to learn which work burns the most. One row per
 
 Rules:
 - Record what the tool reported, not an estimate; write "not visible" where a vendor shows no usage to the Orchestrator, and let the Program Owner add those rows from the vendor's usage page.
-- Note the usage window before and after (five-hour and weekly percent) when known; it feeds the launch ceilings (R14).
+- Note the usage window before and after (five-hour and weekly percent) when known; it feeds the launch ceilings (R14). `tools/usage-ledger/usage.py log` records the same fact in a form `check` can actually gate on before the next launch, rather than only after the task finished; this table stays the human-readable, per-task analysis view (what burns the most), not a replacement for it.
 - A resumed helper is its own row.
 - Add a short "what the rows say" section when a pattern shows. Lesson from the first project: one exhaustive audit cost about as much as two review rounds of a mid-size PR, and the Orchestrator's own session used more than any helper.
 - PROPOSED (F3): per PR, total rounds, classes and money, for the review-protocol metrics.
