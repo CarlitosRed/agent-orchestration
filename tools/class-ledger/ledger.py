@@ -9,8 +9,9 @@ Commands (the ledger file is always the first argument)
   new-round    FILE --head SHA [--escalation-sweep PTR] [--owner-decision PTR]
   add-finding  FILE --class SLUG --by SIG --severity P1|P2|P3 --file PATH:LINE --counterexample TEXT --repro CMD
                [--generator TEXT] [--new-reason TEXT] [--distinct-from SLUG ...]
+               [--kinds K1,K2,...] [--of-kind KIND]
   sort         FILE SLUG --bucket act|consider|noted|dismissed --by SIG [--reason TEXT]
-  close-class  FILE SLUG --by SIG --evidence PTR --sweep-cmd CMD [--sweep-output FILE]
+  close-class  FILE SLUG --by SIG --evidence PTR (--sweep-cmd CMD | --kind-sweep KIND:CMD ...) [--sweep-output FILE]
   verify-class FILE SLUG --by SIG --generator-used TEXT --evidence PTR
   merge-classes FILE SRC --into DST --by SIG --reason TEXT
   status       FILE                 short human table
@@ -26,6 +27,9 @@ What it enforces (exit 1 and no write when refused)
     like an existing class's generator, or a counterexample at a location already recorded, is refused unless the
     reviewer names that class in --distinct-from (the decision is recorded for the Orchestrator to check).
   - Closing needs an evidence pointer and the sweep command; a sweep output file is hashed into the record.
+  - A class with declared kinds (docs/multi-kind-class-design.md: a closed, enumerated set, fixed the moment
+    the class is opened) is closed only with one --kind-sweep per declared kind, never a plain --sweep-cmd;
+    an --of-kind or --kind-sweep naming anything outside that set is refused, not silently accepted as new.
   - verify-class refuses a generator identical to the one the class was closed with (re-sweep with a DIFFERENT one).
   - new-round refuses while an open class is unsorted or in "consider"; past the budget it needs a pointer to the
     different-agent sweep (one final round), and after that a pointer to the owner's scope decision.
@@ -203,7 +207,10 @@ def cmd_add_finding(path, a):
     if cls is None:
         msg = _new_class(data, slug, finding, a)
     else:
-        msg = _instance(data, cls, finding)
+        if a.kinds:
+            raise Broken(f"class '{slug}' already exists; --kinds only declares the closed set on the "
+                         "finding that first opens a class")
+        msg = _instance(data, cls, finding, a.of_kind)
     data["findings"].append(finding)
     save(path, data)
     return msg
@@ -229,7 +236,10 @@ def _new_class(data, slug, finding, a):
     if lookalikes:
         raise Refused("looks like a known class: " + "; ".join(lookalikes) + ". File it under that class, or "
                       "pass --distinct-from <class> with --new-reason so the Orchestrator can check the call")
+    kinds = sorted({k.strip() for k in (a.kinds or "").split(",") if k.strip()})
     finding["kind"] = "new-class"
+    if kinds:
+        finding["of_kind"] = _check_kind(a.of_kind, kinds) if a.of_kind else None
     data["classes"][slug] = {
         "slug": slug,
         "generator": generator,
@@ -245,13 +255,26 @@ def _new_class(data, slug, finding, a):
         "verifications": [],
         "new_reason": (a.new_reason or "").strip(),
         "distinct_from": sorted(distinct),
+        "kinds": kinds,
         "history": [],
     }
     event(data["classes"][slug], data, "opened", finding["by"], finding=finding["id"])
-    return f"{finding['id']}: new class '{slug}' opened in round {data['round']}"
+    return f"{finding['id']}: new class '{slug}' opened in round {data['round']}" + \
+           (f", kinds declared: {', '.join(kinds)}" if kinds else "")
 
 
-def _instance(data, cls, finding):
+def _check_kind(of_kind, kinds):
+    if of_kind not in kinds:
+        raise Refused(f"'{of_kind}' is not a declared kind ({', '.join(kinds)}); match an existing kind "
+                      "exactly, declared when the class was opened - it is a closed set")
+    return of_kind
+
+
+def _instance(data, cls, finding, of_kind=None):
+    if of_kind is not None:
+        if not cls.get("kinds"):
+            raise Broken(f"class '{cls['slug']}' has no declared kinds; --of-kind does not apply")
+        finding["of_kind"] = _check_kind(of_kind, cls["kinds"])
     if finding["vendor"] not in cls["raised_by_vendors"]:
         cls["raised_by_vendors"].append(finding["vendor"])
     if SEVERITIES.index(finding["severity"]) < SEVERITIES.index(cls["severity"]):
@@ -310,13 +333,32 @@ def cmd_close(path, a):
     if cls["state"] == "reopened" and norm(by) in {norm(c) for c in cls["closers"]}:
         raise Refused(f"class '{a.slug}' was reopened after {by} closed it; a DIFFERENT agent must do the "
                       "whole-class sweep and close it")
-    closure = {
-        "round": data["round"],
-        "by": by,
-        "evidence": need(a.evidence, "--evidence"),
-        "sweep_cmd": need(a.sweep_cmd, "--sweep-cmd"),
-        "generator": cls["generator"],
-    }
+    kinds = cls.get("kinds")
+    closure = {"round": data["round"], "by": by, "evidence": need(a.evidence, "--evidence"),
+               "generator": cls["generator"]}
+    if kinds:
+        if a.sweep_cmd:
+            raise Broken(f"class '{a.slug}' declares kinds ({', '.join(kinds)}); use --kind-sweep KIND:CMD "
+                         "once per kind, not --sweep-cmd")
+        sweeps = {}
+        for raw in a.kind_sweep or []:
+            if ":" not in raw:
+                raise Broken(f"--kind-sweep must be KIND:CMD, got {raw!r}")
+            kind, cmd = raw.split(":", 1)
+            kind, cmd = kind.strip(), cmd.strip()
+            _check_kind(kind, kinds)
+            if not cmd:
+                raise Broken(f"--kind-sweep for '{kind}' has an empty command")
+            sweeps[kind] = cmd
+        missing = [k for k in kinds if k not in sweeps]
+        if missing:
+            raise Refused(f"class '{a.slug}' needs one --kind-sweep for each declared kind; missing: "
+                          f"{', '.join(missing)}")
+        closure["kind_sweeps"] = sweeps
+    else:
+        if a.kind_sweep:
+            raise Broken(f"class '{a.slug}' has no declared kinds; use --sweep-cmd, not --kind-sweep")
+        closure["sweep_cmd"] = need(a.sweep_cmd, "--sweep-cmd")
     if a.sweep_output:
         try:
             with open(a.sweep_output, "rb") as fh:
@@ -424,12 +466,12 @@ def metrics(data):
 
 
 def table(data):
-    rows = [("class", "state", "sev", "bucket", "inst", "reopen", "vendors", "opened")]
+    rows = [("class", "state", "sev", "bucket", "inst", "reopen", "vendors", "opened", "kinds")]
     for s, c in sorted(data["classes"].items()):
         n = count_instances(data, s)
         state = c["state"] + (f"->{c['merged_into']}" if c["state"] == "merged" else "")
         rows.append((s, state, c["severity"], c["bucket"], str(n), str(c["reopen_count"]),
-                     "+".join(c["raised_by_vendors"]), f"r{c['opened_round']}"))
+                     "+".join(c["raised_by_vendors"]), f"r{c['opened_round']}", ",".join(c.get("kinds") or [])))
     widths = [max(len(r[i]) for r in rows) for i in range(len(rows[0]))]
     lines = ["  ".join(v.ljust(widths[i]) for i, v in enumerate(r)).rstrip() for r in rows]
     lines.insert(1, "  ".join("-" * w for w in widths))
@@ -512,6 +554,9 @@ def parser():
     sp.add_argument("--generator")
     sp.add_argument("--new-reason")
     sp.add_argument("--distinct-from", action="append")
+    sp.add_argument("--kinds", help="comma-separated closed set of kinds, only on the finding that opens "
+                    "a new class; once declared it cannot be changed")
+    sp.add_argument("--of-kind", help="which declared kind this instance belongs to (must match exactly)")
     sp = add("sort", cmd_sort, True)
     sp.add_argument("--bucket", required=True)
     sp.add_argument("--by", required=True)
@@ -519,7 +564,9 @@ def parser():
     sp = add("close-class", cmd_close, True)
     sp.add_argument("--by", required=True)
     sp.add_argument("--evidence", required=True)
-    sp.add_argument("--sweep-cmd", required=True)
+    sp.add_argument("--sweep-cmd")
+    sp.add_argument("--kind-sweep", action="append", metavar="KIND:CMD",
+                    help="repeat once per declared kind; required instead of --sweep-cmd for a multi-kind class")
     sp.add_argument("--sweep-output")
     sp = add("verify-class", cmd_verify, True)
     sp.add_argument("--by", required=True)

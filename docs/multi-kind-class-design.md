@@ -1,4 +1,5 @@
-# Multi-kind class probes (designed 2026-10-15, not built)
+# Multi-kind class probes (built 2026-10-15)
+Carlos's call on the one open question below: a **closed enum**, not free text - a class's kinds are a fixed set declared once, when the class is opened, and never silently grown later. Built into `tools/class-ledger/ledger.py` (`--kinds`, `--of-kind`, `--kind-sweep`), 11 new tests, 77/77 pass.
 The historical leak (C1, part of L1/L13/L24/L25/L30) was specific: a class generalized as "any alias" (symlink, junction, short name, stream) was closed after a sweep that only checked ONE kind, so later rounds kept finding "new" instances that were really just unchecked kinds of the same class. The original fix idea named those exact kinds - but `symlink`/`junction`/`short name`/`stream` are one project's filesystem concepts, not a framework one. This generalizes the mechanism instead of hardcoding that project's vocabulary into the framework (`AGENTS.md`: write roles and mechanisms, not project specifics).
 
 ## The generic version
@@ -11,9 +12,9 @@ Some classes are really a family: the generator's own wording implies more than 
 4. **Reporting:** `status`/`report` should list, per multi-kind class, which kinds have a recorded sweep and which don't; `exit_ready` (already used by `check`, PR #19/#21's work) should treat an unswept declared kind the same as an unswept class.
 
 ## What's unresolved
-1. Whether kinds should be free text (simple, but a reviewer could typo a kind name and silently open a new one instead of matching the existing one) or a closed, per-class enum set at the moment the class is first declared multi-kind (safer, more ceremony). Leaning free text with a `status` warning for a kind name that's a near-miss of an existing one (same fuzzy-match idea `SIMILARITY_THRESHOLD` already uses for class generators).
-2. Whether this needs a new finding/class field in the stored JSON schema (`schema_version` bump) or can reuse the existing `distinct-from`-style mechanism some other way.
-3. Whether a non-multi-kind class should ever be upgraded to multi-kind mid-review (a reviewer realizes only in round 2 that "oh, this is actually a family") without losing the round-1 history.
+1. ~~Free text vs closed enum~~ - decided: closed enum. A typo in `--of-kind` or `--kind-sweep` is refused outright (`'short-name' is not a declared kind`), not silently treated as a new kind.
+2. No `schema_version` bump needed: `kinds` is an additive field (`[]` when not declared), old ledger files load unchanged.
+3. Whether a non-multi-kind class should ever be upgraded to multi-kind mid-review (a reviewer realizes only in round 2 that "oh, this is actually a family") without losing the round-1 history - still open; today the enum is fixed at the moment the class opens, full stop.
 
 ## Status
-Designed, not built. A real implementation should start with (1) above as a pure, offline-testable function (`kinds_for(class) -> set`, `missing_kinds(class, swept) -> set`) before touching the CLI, same approach `passed_ignoring` took for R16.
+Built. `add-finding --kinds k1,k2` declares the closed set on a new class (refused on an existing one); `--of-kind` tags which declared kind an instance belongs to (refused if it doesn't match exactly); `close-class` needs one `--kind-sweep KIND:CMD` per declared kind instead of a plain `--sweep-cmd` (refused if any kind is missing, or if an unknown kind is named). `status`/`report`'s table shows each class's declared kinds. 11 new tests (`MultiKindClassTests`), 77/77 class-ledger tests pass.
