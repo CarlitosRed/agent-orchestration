@@ -17,13 +17,13 @@ Not a pull request - a PR means a code change under review; a handoff is a note,
 ```
 gh issue create --repo <framework-repo> --title "<short title>" --label handoff,to:<recipient-slug>,from:<sender-slug> --body "**<Role> · <Vendor>:** <one short, pointer-shaped message>"
 ```
-**Checking** (step 0 of every orchestrator's own sweep, before anything else):
+**Checking** (step 0 of every orchestrator's own sweep, before anything else). Note: `gh issue list --label` needs the flag repeated per label, not comma-joined - comma-joined silently returns empty (confirmed by running it, 2026-10-14):
 ```
-gh issue list --repo <framework-repo> --label "handoff,to:<my-slug>" --state open --json number,title,url
+gh issue list --repo <framework-repo> --label handoff --label "to:<my-slug>" --state open --json number,title,url
 ```
 One small call. Empty result, near-zero tokens, move on. A non-empty result is opened (`gh issue view <number>`), acted on, then closed with the `handled` label so it never resurfaces:
 ```
-gh issue comment <number> --body "**<Role> · <Vendor>:** done, see <pointer>" && gh issue close <number> --reason completed
+gh issue edit <number> --add-label handled && gh issue comment <number> --body "**<Role> · <Vendor>:** done, see <pointer>" && gh issue close <number> --reason completed
 ```
 A reply that needs its own follow-up stays on the same thread (`gh issue comment`); an unprompted status update going the other direction is a new issue with its own `to:<recipient-slug>`, not a reply.
 
