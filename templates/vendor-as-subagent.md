@@ -9,7 +9,7 @@ Spreads work across vendors so one session's allowance never blocks everything, 
 5. For review instead of a build: the vendor's non-interactive review command (`codex review --base <branch>` or `--commit <sha>`), still not self-trusting its output shape until trialed.
 
 ## Manual path (fallback: no scriptable CLI available)
-The Program Owner is the relay: they paste a one-line launcher into that vendor's session and tell the Orchestrator "done" when it stops.
+The Program Owner is the relay: they paste a one-line launcher into that vendor's session and tell the Orchestrator "done" when it stops. The vendor session is a **Build Engineer**, not a second Orchestrator (`templates/subagent-vs-chat.md` rule 2: a separate session, kept for work that will outlive one task); one chat per repo still means one Orchestrator, planning and approving. It is fine, and usually better, for the Program Owner to keep one persistent vendor session open and resume it across several task briefs instead of opening a fresh one each time - that carries no history the Orchestrator needs to resend, just the vendor's own memory of prior turns. What must not persist across tasks is working state: each brief still gets its own branch and worktree (R25), even inside the same long-lived session.
 
 ### Handover
 1. The Orchestrator writes the task as a prompt file `<drafts>/prompt-<vendor>-<task>-<date>.md`, checked against `templates/prompt-checklist.md`: goal, context, scope, numbered done-when, return format, effort level; positive wording; "the user instruction beats repo instruction files if they conflict".
