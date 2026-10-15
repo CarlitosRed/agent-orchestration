@@ -519,6 +519,104 @@ class OutputTests(Base):
         self.assertIn("café", self.raw().decode("utf-8"))
 
 
+class MultiKindClassTests(Base):
+    """Closed-enum kinds (docs/multi-kind-class-design.md, rank 1 in rules/README.md's Promote next table):
+    a class's kinds are declared once, on the finding that opens it, and fixed from then on."""
+
+    def open_multi(self, cls="path-alias", kinds="symlink,junction", gen=GEN):
+        return self.found(cls, gen=gen, extra=("--kinds", kinds))
+
+    def test_declaring_kinds_on_a_new_class_records_them(self):
+        self.init()
+        self.open_multi()
+        self.assertEqual(self.data()["classes"]["path-alias"]["kinds"], ["junction", "symlink"])
+
+    def test_kinds_cannot_be_declared_on_an_existing_class(self):
+        self.init()
+        self.open_multi()
+        code, out, err = self.find("path-alias", extra=("--kinds", "stream"))
+        self.assertEqual(code, 2, out + err)
+        self.assertIn("already exists", err)
+
+    def test_of_kind_must_match_a_declared_kind(self):
+        self.init()
+        self.open_multi()
+        code, out, err = self.find("path-alias", extra=("--of-kind", "short-name"))
+        self.assertEqual(code, 1, out + err)
+        self.assertIn("not a declared kind", err)
+
+    def test_of_kind_matching_a_declared_kind_is_recorded(self):
+        self.init()
+        self.open_multi()
+        self.found("path-alias", extra=("--of-kind", "symlink"))
+        findings = [f for f in self.data()["findings"] if f["class"] == "path-alias"]
+        self.assertEqual(findings[-1]["of_kind"], "symlink")
+
+    def test_of_kind_on_a_plain_class_is_an_error(self):
+        self.init()
+        self.found("dual-token", gen=GEN)
+        code, out, err = self.find("dual-token", extra=("--of-kind", "anything"))
+        self.assertEqual(code, 2, out + err)
+        self.assertIn("no declared kinds", err)
+
+    def test_close_needs_one_kind_sweep_per_declared_kind(self):
+        self.init()
+        self.open_multi()
+        self.run_cli("sort", "path-alias", "--bucket", "act", "--by", ORCH)
+        code, out, err = self.run_cli("close-class", "path-alias", "--by", BUILD_B, "--evidence", "comment 1",
+                                       "--kind-sweep", "symlink:python sweep.py --symlink")
+        self.assertEqual(code, 1, out + err)
+        self.assertIn("junction", err)
+
+    def test_close_with_sweep_cmd_instead_of_kind_sweep_is_an_error(self):
+        self.init()
+        self.open_multi()
+        self.run_cli("sort", "path-alias", "--bucket", "act", "--by", ORCH)
+        code, out, err = self.run_cli("close-class", "path-alias", "--by", BUILD_B, "--evidence", "comment 1",
+                                       "--sweep-cmd", "python sweep.py --all")
+        self.assertEqual(code, 2, out + err)
+        self.assertIn("--kind-sweep", err)
+
+    def test_close_with_an_undeclared_kind_sweep_is_refused(self):
+        self.init()
+        self.open_multi()
+        self.run_cli("sort", "path-alias", "--bucket", "act", "--by", ORCH)
+        code, out, err = self.run_cli("close-class", "path-alias", "--by", BUILD_B, "--evidence", "comment 1",
+                                       "--kind-sweep", "symlink:python sweep.py --symlink",
+                                       "--kind-sweep", "junction:python sweep.py --junction",
+                                       "--kind-sweep", "stream:python sweep.py --stream")
+        self.assertEqual(code, 1, out + err)
+        self.assertIn("not a declared kind", err)
+
+    def test_close_with_every_declared_kind_swept_succeeds(self):
+        self.init()
+        self.open_multi()
+        self.run_cli("sort", "path-alias", "--bucket", "act", "--by", ORCH)
+        code, out, err = self.run_cli("close-class", "path-alias", "--by", BUILD_B, "--evidence", "comment 1",
+                                       "--kind-sweep", "symlink:python sweep.py --symlink",
+                                       "--kind-sweep", "junction:python sweep.py --junction")
+        self.assertEqual(code, 0, err)
+        cls = self.data()["classes"]["path-alias"]
+        self.assertEqual(cls["state"], "closed")
+        swept = cls["closures"][-1]["kind_sweeps"]
+        self.assertEqual(swept, {"symlink": "python sweep.py --symlink", "junction": "python sweep.py --junction"})
+
+    def test_kind_sweep_on_a_plain_class_is_an_error(self):
+        self.init()
+        self.found("dual-token", gen=GEN)
+        self.run_cli("sort", "dual-token", "--bucket", "act", "--by", ORCH)
+        code, out, err = self.run_cli("close-class", "dual-token", "--by", BUILD_B, "--evidence", "comment 1",
+                                       "--kind-sweep", "anything:python sweep.py")
+        self.assertEqual(code, 2, out + err)
+        self.assertIn("no declared kinds", err)
+
+    def test_table_shows_declared_kinds(self):
+        self.init()
+        self.open_multi()
+        out = self.ok("status")
+        self.assertIn("junction,symlink", out)  # kinds are stored sorted
+
+
 class CheckTests(Base):
     """The ready-for-review / CI gate (rank 1 in rules/README.md's Promote next table): exit_ready was
     already computed by report --json, but nothing refused a PR for being not exit_ready. check does."""
