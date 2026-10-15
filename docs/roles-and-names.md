@@ -14,6 +14,9 @@ The framework names ROLES, not personas. Any vendor's agent can fill any role (s
 | Operations Clerk | Mechanical chores: status tables, closing finished PRs | haiku clerk |
 | Strategy Advisor | Optional stronger model consulted at plan lock, repeated failure and before done | advisor, counselor |
 
+## Single-vendor projects
+"From the other vendor" above assumes two or more vendors, today's default. A project running exactly one vendor fills Independent Reviewer with a second, distinct identity of that same vendor instead - not genuine cross-vendor independence, and not treated as equivalent to it. See `adapters/README.md`'s "How many vendors" for what that costs and what compensates for it.
+
 ## Signature format (what the gate reads)
 Comments are signed `**<Role> · <Vendor>:**`, for example `**Independent Reviewer · Codex:**` or `**Build Engineer · Claude:**`. The vendor in the signature drives the cross-vendor rules; the role drives who may do what. The verdict must be the first words after the signature: `Approved at <full sha>` or `Not approved at <full sha>`.
 
