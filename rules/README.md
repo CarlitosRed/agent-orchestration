@@ -35,7 +35,7 @@ Status: **enforced** = a tool refuses the wrong action; **partly** = a tool or t
 
 Merged: source rules 1 and 12 into R1; 3, 4 and 5 into R3; 6 and the short-row part of 21 into R4; 9 and 10 into R7; 18 split into R14 and R15; 19 split into R16, R17, R18. R21 to R24 come from the reference project's roles file, not from the 21 context rules. Dropped: product data lists, one-day temporary limits, named accounts and paths.
 
-## Promote next (the two ADVICE or partly rules that cost the most rounds)
+## Promote next (the three ADVICE or partly rules that cost the most rounds)
 Done, 2026-10-15: **R22 verdict-first** was listed here as unbuilt; it is already a gate check (`tools/gate/gate.py`'s `signal_problems`, 9 passing tests), from F2 - the table was stale, corrected rather than re-built. **R18+R16 class sweep**'s missing half was built: `close-class` already required a sweep command (F3), but nothing refused a PR for having an open, unswept class at review time. `tools/class-ledger/ledger.py check` does now (4 new tests, 66/66 pass), wired into `templates/ready-for-review.md` item 5. **R16 process gates up front** was also built the same day: `gate.py check --ignore review,owner` (3 new tests, 227/227 pass) plus `templates/gate-pre-review.yml`, a copyable CI workflow a project drops into `.github/workflows/`. The alias-type-class probe-row rule (still PROPOSED, no enforcer) stays open below.
 
 | rank | rule | leaks | enforcer to build | level |
