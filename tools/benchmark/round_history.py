@@ -34,6 +34,14 @@ class Broken(Exception):
     """An expected usage, collection, file or format error."""
 
 
+def decode_json(text):
+    """Contain decoder format/limit failures without hiding unrelated code errors."""
+    try:
+        return json.loads(text)
+    except (ValueError, RecursionError) as exc:
+        raise Broken("JSON input is malformed or exceeds decoder limits") from exc
+
+
 def signer_key(text):
     return " ".join(text.strip().rstrip(":").split()).casefold()
 
@@ -130,7 +138,7 @@ def cmd_fetch(args):
         capture_output=True, text=True, encoding="utf-8", check=False)
     if response.returncode:
         raise Broken(f"gh api failed: {response.stderr.strip()}")
-    pages = json.loads(response.stdout)
+    pages = decode_json(response.stdout)
     if not isinstance(pages, list) or any(not isinstance(page, list) for page in pages):
         raise Broken("gh api must return a list of comment pages")
     comments = []
@@ -152,7 +160,7 @@ def cmd_fetch(args):
 
 def cmd_analyze(args):
     with open(args.comments, encoding="utf-8") as stream:
-        snapshot = json.load(stream)
+        snapshot = decode_json(stream.read())
     provenance = {"coverage": "unknown_legacy_snapshot", "pagination": "unknown"}
     if isinstance(snapshot, dict):
         if (snapshot.get("schema_version") != 1 or snapshot.get("coverage") != "issue_comments_only"

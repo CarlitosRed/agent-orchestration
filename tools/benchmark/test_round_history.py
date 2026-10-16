@@ -235,6 +235,62 @@ class CliTests(unittest.TestCase):
             self.assertNotIn('Traceback', err.getvalue())
 
 
+class DecoderLimitsTests(unittest.TestCase):
+    @staticmethod
+    def payloads():
+        return ['[' * 4096 + 'null' + ']' * 4096,
+                '{"x":' * 4096 + 'null' + '}' * 4096,
+                '[' + '8' * 6000 + ']', '[-' + '8' * 6000 + ']']
+
+    def test_actual_analyze_cli_contains_decoder_limits(self):
+        with tempfile.TemporaryDirectory() as scratch:
+            path = Path(scratch) / 'input.json'
+            for payload in self.payloads():
+                with self.subTest(prefix=payload[:16]):
+                    path.write_text(payload, encoding='utf-8')
+                    result = subprocess.run([sys.executable, '-B', str(HERE / 'round_history.py'),
+                                             'analyze', '--comments', str(path), '--reviewer', REVIEWER],
+                                            capture_output=True, text=True, encoding='utf-8')
+                    self.assertEqual(result.returncode, 2, result.stderr)
+                    self.assertIn('error:', result.stderr)
+                    self.assertNotIn('Traceback', result.stderr)
+
+    def test_fetch_contains_decoder_limits_and_preserves_existing_snapshot(self):
+        with tempfile.TemporaryDirectory() as scratch:
+            path = Path(scratch) / 'output.json'
+            path.write_text('previous snapshot', encoding='utf-8')
+            argv = ['fetch', '--repo', 'fictional/project', '--pr', '1', '--out', str(path)]
+            for payload in self.payloads():
+                response = SimpleNamespace(returncode=0, stdout=payload, stderr='')
+                with self.subTest(prefix=payload[:16]), patch.object(h.subprocess, 'run', return_value=response):
+                    with contextlib.redirect_stderr(io.StringIO()) as err:
+                        self.assertEqual(h.main(argv), 2)
+                        self.assertNotIn('Traceback', err.getvalue())
+                self.assertEqual(path.read_text(), 'previous snapshot')
+
+    def test_decoder_exception_family_is_handled_at_both_call_sites(self):
+        with tempfile.TemporaryDirectory() as scratch:
+            path = Path(scratch) / 'input.json'
+            path.write_text('[]')
+            response = SimpleNamespace(returncode=0, stdout='[[]]', stderr='')
+            for exception in (ValueError('decoder limit'), RecursionError('decoder depth')):
+                for command in ('analyze', 'fetch'):
+                    argv = ([command, '--comments', str(path), '--reviewer', REVIEWER] if command == 'analyze'
+                            else [command, '--repo', 'fictional/project', '--pr', '1', '--out', str(path)])
+                    with self.subTest(command=command, exception=type(exception).__name__):
+                        with patch.object(h.json, 'loads', side_effect=exception), \
+                                patch.object(h.subprocess, 'run', return_value=response), \
+                                contextlib.redirect_stderr(io.StringIO()) as err:
+                            self.assertEqual(h.main(argv), 2)
+                            self.assertIn('decoder limits', err.getvalue())
+
+    def test_unrelated_programming_errors_are_not_hidden(self):
+        for exception in (ValueError('programming defect'), RecursionError('programming defect')):
+            with patch.object(h, 'cmd_analyze', side_effect=exception):
+                with self.assertRaises(type(exception)):
+                    h.main(['analyze', '--comments', 'unused.json', '--reviewer', REVIEWER])
+
+
 class HistoricalSnapshotTests(unittest.TestCase):
     def test_original_snapshots_describe_events_without_inventing_rounds(self):
         for pr, count, approval in ((35, 3, None), (38, 5, 5)):
