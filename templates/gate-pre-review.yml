@@ -24,17 +24,26 @@ jobs:
         env:
           FRAMEWORK_PIN_TOKEN: ${{ secrets.FRAMEWORK_PIN_TOKEN }}
         run: |
-          if [ -z "$FRAMEWORK_PIN_TOKEN" ]; then
-            echo "::error::FRAMEWORK_PIN_TOKEN secret is not set. The framework repo is private, so a plain" \
-                 "clone fails here with a cryptic git error - see adapters/README.md, 'Private framework repo access'." >&2
-            exit 1
-          fi
-          # Strip any stray whitespace/CRLF a copy-paste into the secret may have carried - a PAT
-          # never legitimately contains whitespace, and an embedded CR/space breaks the URL below
-          # with curl's "Malformed input to a URL function" rather than an auth error.
-          FRAMEWORK_PIN_TOKEN="$(printf '%s' "$FRAMEWORK_PIN_TOKEN" | tr -d '[:space:]')"
           repo_no_scheme="${{ steps.pin.outputs.repo }}"
           repo_no_scheme="${repo_no_scheme#https://}"
+          # Try a plain, unauthenticated clone first - this is the only path needed when the
+          # framework repo is public, and it needs no secret at all.
+          if git clone --depth 1 --branch "${{ steps.pin.outputs.tag }}" \
+               "https://${repo_no_scheme}" .framework-pin 2>/tmp/clone-plain.err; then
+            exit 0
+          fi
+          cat /tmp/clone-plain.err >&2
+          if [ -z "$FRAMEWORK_PIN_TOKEN" ]; then
+            echo "::error::Plain clone of the pinned framework failed and FRAMEWORK_PIN_TOKEN is not set." \
+                 "If the framework repo is private, see adapters/README.md, 'Private framework repo access'." \
+                 "If it should be public, check the repo/tag in .orchestration/framework.pin." >&2
+            exit 1
+          fi
+          # Framework repo is private - retry authenticated. Strip any stray whitespace/CRLF a
+          # copy-paste into the secret may have carried - a PAT never legitimately contains
+          # whitespace, and an embedded CR/space breaks the URL below with curl's "Malformed input
+          # to a URL function" rather than an auth error.
+          FRAMEWORK_PIN_TOKEN="$(printf '%s' "$FRAMEWORK_PIN_TOKEN" | tr -d '[:space:]')"
           git clone --depth 1 --branch "${{ steps.pin.outputs.tag }}" \
             "https://x-access-token:${FRAMEWORK_PIN_TOKEN}@${repo_no_scheme}" .framework-pin
 
