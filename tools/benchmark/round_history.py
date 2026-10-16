@@ -1,43 +1,41 @@
 #!/usr/bin/env python3
-"""round-history: measure, from a PR's real signed review comments, how many rounds were spent and how many
-of those rounds raised a class that overlaps an earlier round's class - the instance-chasing pattern the
-convergence loop (docs/convergence-loop.md, F3) was built to stop. F3's own report named this measurement
-PROPOSED and never built it (docs/f3-report.md: "Rounds actually drop - PROPOSED; measure on 2 or 3
-instance-chasing PRs"). This tool is that measurement.
+"""Describe signed review events in a PR's issue-comment history.
 
-Standard library only. Retrospective analysis of comments that already happened - it cannot re-run a review
-with the class ledger enforcing anything; it only reads the record left behind by a loop that did NOT have
-the ledger yet, and reports which of those rounds a ledger-enforced loop would likely have caught as a
-reopen instead of a fresh-looking finding. Label this estimate honestly in any report
-(templates/benchmark-checklist.md, "end-to-end relevance"): it is a retrospective read of real history, not
-a measured replay through the actual enforcing tool.
+Retrospective text analysis is not a replay of the class ledger. Verdict events
+and distinct SHA tokens are observable; review rounds and class reopens
+need structured evidence absent from this input and are reported unknown.
+Formal GitHub review bodies are outside the issue-comment collection surface.
 
-Commands
-  fetch    --repo OWNER/REPO --pr N --out FILE          pull a PR's issue comments via `gh api`, write JSON
-  analyze  --comments FILE [--threshold 0.5]             parse rounds, flag likely-recurring classes, print report
+fetch --repo OWNER/REPO --pr N --out FILE
+analyze --comments FILE --reviewer SIGNATURE [--reviewer SIGNATURE ...]
+        [--threshold 0.5]
 
-Exit codes: 0 done, 2 usage or file error. (No "refused" state - this tool only reads and reports.)
+Exit codes: 0 done, 2 usage, file, collection or input-format error.
+See tools/benchmark/README.md for the report contract and examples.
 """
 import argparse
+import datetime as dt
 import json
+import math
 import re
 import subprocess
 import sys
 
-# Same Jaccard threshold and stopword list class-ledger uses for its own lookalike check
-# (tools/class-ledger/ledger.py) - reused rather than re-tuned, so a flag here means the same thing a
-# ledger-enforced round would have meant.
-SIMILARITY_THRESHOLD = 0.5
 STOPWORDS = frozenset("a an and any are as at be by each every for from in is it its not of on or that the this to "
                       "where which with without".split())
+SIGNATURE_RE = re.compile(r"\A\s*\*\*\s*(?P<signer>[^*\n]+?)\s*:?\s*\*\*\s*:?\s*(?P<rest>.*)\Z", re.S)
 VERDICT_RE = re.compile(
-    r"\*\*(?P<signer>[^*\n]+)\*\*:?\s*\n?\s*(?P<verdict>Approved|Not approved) at (?P<sha>[0-9a-fA-F]{7,40})"
-)
-REOPEN_PHRASES = re.compile(r"\b(reopen(ed)?|remains open|still open|back open)\b", re.IGNORECASE)
+    r"(?P<verdict>not approved|approved) at\s+"
+    r"(?:`(?P<quoted_sha>[0-9a-f]{7,40})`|(?P<sha>[0-9a-f]{7,40})(?![a-z0-9`]))", re.I)
+REOPEN_PHRASES = re.compile(r"\b(reopen(ed)?|remains open|still open|back open)\b", re.I)
 
 
 class Broken(Exception):
-    """Usage, file or format error (exit 2)."""
+    """An expected usage, collection, file or format error."""
+
+
+def signer_key(text):
+    return " ".join(text.strip().rstrip(":").split()).casefold()
 
 
 def words(text):
@@ -46,117 +44,146 @@ def words(text):
 
 def jaccard(a, b):
     wa, wb = words(a), words(b)
-    if not wa or not wb:
-        return 0.0
-    return len(wa & wb) / len(wa | wb)
+    return len(wa & wb) / len(wa | wb) if wa and wb else 0.0
 
 
-def extract_rounds(comments):
-    """comments: list of {author, created, body}, oldest first (as `gh api` returns PR issue comments).
-    A round is any comment whose body carries a signed verdict (R22: signature, then "Approved"/"Not
-    approved at <sha>" as the first words after it) - builder progress comments and the owner's "go" carry
-    no such verdict and are not rounds. Returns rounds in order: {index, signer, verdict, sha, created, body}."""
-    rounds = []
-    for c in comments:
-        m = VERDICT_RE.search(c["body"])
-        if not m:
+def timestamp(value):
+    if not isinstance(value, str):
+        raise Broken("comment created must be a timezone-aware ISO 8601 timestamp")
+    try:
+        parsed = dt.datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise Broken("comment created must be a timezone-aware ISO 8601 timestamp") from exc
+    if parsed.tzinfo is None:
+        raise Broken("comment created must include a timezone")
+    return parsed
+
+
+def validate_comments(comments):
+    if not isinstance(comments, list):
+        raise Broken("comments must be a list")
+    for comment in comments:
+        if not isinstance(comment, dict) or not isinstance(comment.get("body"), str):
+            raise Broken("each comment must be an object with a string body")
+        timestamp(comment.get("created"))
+    return sorted(comments, key=lambda c: timestamp(c["created"]))
+
+
+def extract_events(comments, reviewers):
+    """Parse leading verdicts from an explicit allowlist, not approval authority.
+
+    Refreshed verdicts remain events, without claiming a new round happened.
+    Signatures do not authenticate the person or session behind a shared account.
+    """
+    allowed = {signer_key(r) for r in reviewers}
+    if not allowed or "" in allowed:
+        raise Broken("provide at least one non-empty reviewer signature")
+    events = []
+    for c in validate_comments(comments):
+        signature = SIGNATURE_RE.match(c["body"])
+        if not signature or signer_key(signature["signer"]) not in allowed:
             continue
-        rounds.append({
-            "index": len(rounds) + 1,
-            "signer": m.group("signer").strip(),
-            "verdict": m.group("verdict"),
-            "sha": m.group("sha"),
-            "created": c.get("created"),
-            "body": c["body"],
-        })
-    return rounds
+        verdict = VERDICT_RE.match(signature["rest"])
+        if verdict:
+            events.append({"index": len(events) + 1,
+                           "signer": " ".join(signature["signer"].strip().rstrip(":").split()),
+                           "verdict": verdict["verdict"].lower(),
+                           "sha": (verdict["sha"] or verdict["quoted_sha"]).lower(),
+                           "created": c["created"], "body": c["body"]})
+    return events
 
 
-def flag_recurring(rounds, threshold=SIMILARITY_THRESHOLD):
-    """For each 'Not approved' round, compare its body against every EARLIER round's body (any verdict) and
-    flag pairs at or above threshold - the same signal class-ledger's own close-class lookalike check uses.
-    Returns flagged pairs, round numbers 1-based, each pair reported once (against its highest-scoring
-    earlier round, not every earlier round it happens to clear the bar against)."""
-    flags = []
-    for i, r in enumerate(rounds):
-        if r["verdict"] != "Not approved":
+def report(events, threshold=0.5):
+    if not math.isfinite(threshold) or not 0 <= threshold <= 1:
+        raise Broken("threshold must be finite and between 0 and 1")
+    first_approval = next((e["index"] for e in events if e["verdict"] == "approved"), None)
+    overlap = []
+    for i, event in enumerate(events):
+        if event["verdict"] != "not approved":
             continue
-        best = None
-        for j in range(i):
-            score = jaccard(r["body"], rounds[j]["body"])
-            if score >= threshold and (best is None or score > best["score"]):
-                best = {"round": r["index"], "overlaps_with_round": rounds[j]["index"], "score": round(score, 2)}
-        if best:
-            flags.append(best)
-    return flags
-
-
-def flag_explicit_reopen_language(rounds):
-    return [r["index"] for r in rounds if REOPEN_PHRASES.search(r["body"])]
-
-
-def report(rounds, threshold=SIMILARITY_THRESHOLD):
-    approved = [r for r in rounds if r["verdict"] == "Approved"]
-    recurring = flag_recurring(rounds, threshold)
-    not_approved_rounds = [r["index"] for r in rounds if r["verdict"] == "Not approved"]
-    likely_avoidable = sorted({f["round"] for f in recurring} |
-                               set(flag_explicit_reopen_language(rounds)) & set(not_approved_rounds))
-    return {
-        "total_rounds": len(rounds),
-        "rounds_to_approval": approved[0]["index"] if approved else None,
-        "approved": bool(approved),
-        "recurring_class_flags": recurring,
-        "explicit_reopen_language_in_rounds": flag_explicit_reopen_language(rounds),
-        "rounds_a_ledger_likely_catches_as_reopen": likely_avoidable,
-    }
+        candidates = [(jaccard(event["body"], previous["body"]), previous["index"])
+                      for previous in events[:i]]
+        if candidates:
+            score, earlier = max(candidates, key=lambda pair: pair[0])
+            if score >= threshold:
+                overlap.append({"event": event["index"], "overlaps_with_event": earlier,
+                                "score": round(score, 2)})
+    return {"verdict_events": len(events), "has_approval_event": first_approval is not None,
+            "first_approval_event_index": first_approval,
+            "distinct_reviewed_sha_tokens": len({e["sha"] for e in events}),
+            "review_rounds": None, "rounds_to_approval": None, "class_reopens": None,
+            "comment_text_overlap": overlap,
+            "literal_reopen_phrase_events": [e["index"] for e in events if REOPEN_PHRASES.search(e["body"])],
+            "limitations": ["Verdict events and distinct SHA tokens do not establish review rounds.",
+                            "Abbreviated and full SHA tokens are not resolved to canonical commits.",
+                            "An approval event does not establish current-head approval or merge readiness.",
+                            "Text overlap and phrase matches do not establish class identity or closure.",
+                            "Reviewer signatures are supplied by the caller, not authenticated here."]}
 
 
 def cmd_fetch(args):
-    out = subprocess.run(
-        ["gh", "api", f"repos/{args.repo}/issues/{args.pr}/comments",
-         "--jq", "[.[] | {author: .user.login, created: .created_at, body: .body}]"],
-        capture_output=True, text=True, check=False,
-    )
-    if out.returncode != 0:
-        raise Broken(f"gh api failed: {out.stderr.strip()}")
-    try:
-        comments = json.loads(out.stdout)
-    except json.JSONDecodeError as e:
-        raise Broken(f"gh api returned non-JSON output: {e}")
-    with open(args.out, "w", encoding="utf-8") as f:
-        json.dump(comments, f, indent=2, sort_keys=True)
-        f.write("\n")
-    print(f"wrote {len(comments)} comments to {args.out}")
+    if not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", args.repo) or args.pr < 1:
+        raise Broken("provide OWNER/REPO and a positive PR number")
+    response = subprocess.run(
+        ["gh", "api", "--paginate", "--slurp",
+         f"repos/{args.repo}/issues/{args.pr}/comments?per_page=100"],
+        capture_output=True, text=True, encoding="utf-8", check=False)
+    if response.returncode:
+        raise Broken(f"gh api failed: {response.stderr.strip()}")
+    pages = json.loads(response.stdout)
+    if not isinstance(pages, list) or any(not isinstance(page, list) for page in pages):
+        raise Broken("gh api must return a list of comment pages")
+    comments = []
+    for page in pages:
+        for item in page:
+            if not isinstance(item, dict):
+                raise Broken("gh api returned an invalid comment")
+            comments.append({"id": item.get("id"), "created": item.get("created_at"),
+                             "body": item.get("body"), "url": item.get("html_url")})
+    comments = validate_comments(comments)
+    snapshot = {"schema_version": 1, "repo": args.repo, "pr": args.pr,
+                "coverage": "issue_comments_only", "pagination": "all_pages_retrieved",
+                "fetched_at": dt.datetime.now(dt.timezone.utc).isoformat(), "comments": comments}
+    with open(args.out, "w", encoding="utf-8") as stream:
+        json.dump(snapshot, stream, indent=2, sort_keys=True)
+        stream.write("\n")
+    print(f"wrote {len(comments)} issue comments to {args.out}; formal review bodies excluded")
 
 
 def cmd_analyze(args):
-    with open(args.comments, encoding="utf-8") as f:
-        comments = json.load(f)
-    rounds = extract_rounds(comments)
-    result = report(rounds, args.threshold)
+    with open(args.comments, encoding="utf-8") as stream:
+        snapshot = json.load(stream)
+    provenance = {"coverage": "unknown_legacy_snapshot", "pagination": "unknown"}
+    if isinstance(snapshot, dict):
+        if (snapshot.get("schema_version") != 1 or snapshot.get("coverage") != "issue_comments_only"
+                or snapshot.get("pagination") != "all_pages_retrieved"):
+            raise Broken("unsupported snapshot schema or collection metadata")
+        provenance = {key: snapshot.get(key) for key in ("coverage", "pagination", "repo", "pr", "fetched_at")}
+        snapshot = snapshot.get("comments")
+    result = report(extract_events(snapshot, args.reviewer), args.threshold)
+    result["collection"] = provenance
+    result["reviewer_signatures"] = sorted({signer_key(r) for r in args.reviewer})
     print(json.dumps(result, indent=2, sort_keys=True))
 
 
 def main(argv=None):
-    p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    sub = p.add_subparsers(dest="command", required=True)
-
-    pf = sub.add_parser("fetch")
-    pf.add_argument("--repo", required=True)
-    pf.add_argument("--pr", required=True, type=int)
-    pf.add_argument("--out", required=True)
-    pf.set_defaults(func=cmd_fetch)
-
-    pa = sub.add_parser("analyze")
-    pa.add_argument("--comments", required=True)
-    pa.add_argument("--threshold", type=float, default=SIMILARITY_THRESHOLD)
-    pa.set_defaults(func=cmd_analyze)
-
-    args = p.parse_args(argv)
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    sub = parser.add_subparsers(dest="command", required=True)
+    fetch = sub.add_parser("fetch")
+    fetch.add_argument("--repo", required=True)
+    fetch.add_argument("--pr", required=True, type=int)
+    fetch.add_argument("--out", required=True)
+    fetch.set_defaults(func=cmd_fetch)
+    analyze = sub.add_parser("analyze")
+    analyze.add_argument("--comments", required=True)
+    analyze.add_argument("--reviewer", action="append", required=True, help="eligible signature, without ** markup")
+    analyze.add_argument("--threshold", type=float, default=0.5)
+    analyze.set_defaults(func=cmd_analyze)
+    args = parser.parse_args(argv)
     try:
         args.func(args)
-    except Broken as e:
-        print(f"error: {e}", file=sys.stderr)
+    except (Broken, OSError, UnicodeError, json.JSONDecodeError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
         return 2
     return 0
 
