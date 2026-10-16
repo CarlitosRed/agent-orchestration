@@ -28,7 +28,7 @@ Each project lives on GitHub (private) with local copies, and runs on a pinned f
 | `ideas/` | ideas register and one note per source | 15 entries (pstack, advisor, a video on context/caching) |
 | `rules/` | the rules (R1-R27) with the enforcer of each | F1, mostly real enforcers now - F6 |
 | `templates/` | task card, builder, reviewer, review round, ready-for-review, vendor-as-subagent, a CI workflow | F1, kept current with F6's builds |
-| `tools/` | `gate` (227 tests), `class-ledger` (77), `claims-ledger` (18), `usage-ledger` (17), `verify-manifest` | F2-F6, 339 tests total, all offline |
+| `tools/` | `gate` (231 tests), `class-ledger` (77), `claims-ledger` (24), `usage-ledger` (17), `verify-manifest` (13), `blinded-eval` (10), `benchmark` (13) | F2-F6, 385 tests total, all offline |
 | `skills/` | model-agnostic SKILL.md files: verification (create/maintain/demo), `handoff`, `no-comments`, `onboard-project`, `retrofit-project` | F4-F6 |
 | `adapters/` | what a project must provide (`.orchestration/`: pin, gate config, desk/commands/roles, leaks, verify) | career-agent-hq onboarded (merged); advance-po-reader retrofitted, open for its own review (`advance-po-reader#51`) |
 | `vendors/` | per-vendor capability profile | `codex.md` real and tested; `claude.md` not written yet |
