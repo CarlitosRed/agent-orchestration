@@ -3,7 +3,7 @@ The framework names ROLES, not personas. Any vendor's agent can fill any role (s
 
 | Role (use this name) | What it does | Replaces (old chat names) |
 | --- | --- | --- |
-| Program Owner | The human. Sets goals, gives signed go and Approved lines, approves framework changes | Carlos |
+| Program Owner | The human. Sets goals, gives signed go and Approved lines, approves framework changes | the owner's own first name, retired here for privacy now that this repo is public |
 | Orchestrator | Plans, routes work to roles, verifies reports from GitHub, runs the gate, keeps the state files; the only role that proposes framework changes to the Program Owner | Claudio · PM (and PM 1 to 5) |
 | Platform Engineer | Machine, environment and tooling: installs, desk facts, scripts | Claudio · IT |
 | Build Engineer | Implements one task card on one branch | builder helpers, Codex builders |
