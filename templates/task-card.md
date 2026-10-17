@@ -17,6 +17,10 @@ One or two sentences: what exists when this is done.
 - [ ] <a check someone can run>
 - [ ] <a check someone can run>
 
+## Dispatch preflight (opt-in proposal)
+For parallel work, the Orchestrator may provide a plan following `tools/dispatch-plan/README.md`.
+Run `python <framework-pin>/tools/dispatch-plan/dispatch_plan.py check <plan.json>` before dispatch when the adopted pin contains the tool. Keep its output with the task record. A pass checks declared logical ownership and dependencies; existing health, usage and approval checks still apply.
+
 ## Leave alone
 - <files, folders or decisions that must not change>
 
