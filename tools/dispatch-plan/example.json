@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "base_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "goal": "Fictional parser and renderer change with a shared acceptance check",
+  "integration_check": "Run the parser-renderer contract tests in an integration checkout",
+  "max_parallel": 2,
+  "jobs": [
+    {
+      "id": "parser",
+      "role": "Build Engineer",
+      "provider": "provider-a",
+      "model": "selected-model",
+      "access": "write",
+      "workspace_id": "parser-workspace",
+      "branch_id": "parser-branch",
+      "write_scopes": ["code/parser"],
+      "depends_on": [],
+      "output": "Parser patch plus artifact pointer",
+      "proof": "Record result head and parser check output"
+    },
+    {
+      "id": "renderer",
+      "role": "Build Engineer",
+      "provider": "provider-a",
+      "model": "selected-model",
+      "access": "write",
+      "workspace_id": "renderer-workspace",
+      "branch_id": "renderer-branch",
+      "write_scopes": ["code/renderer"],
+      "depends_on": [],
+      "output": "Renderer patch plus artifact pointer",
+      "proof": "Record result head and renderer check output"
+    },
+    {
+      "id": "review",
+      "role": "Independent Reviewer",
+      "provider": "provider-b",
+      "model": "review-model",
+      "access": "read-only",
+      "workspace_id": "review-workspace",
+      "branch_id": null,
+      "write_scopes": [],
+      "depends_on": ["parser", "renderer"],
+      "output": "Review report on the integrated result",
+      "proof": "Verify result heads and integration evidence independently"
+    }
+  ]
+}
