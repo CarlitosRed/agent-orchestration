@@ -25,7 +25,7 @@ Program Owner asked whether the Framework Orchestrator role could fail over to C
 ## 5. What it did NOT check
 - Whether the Program Owner has looked at #59/#60/#61/#62/#63 since my sweep - no review activity visible on any of them as of this checkpoint.
 - Whether `po-reader-orchestrator` or the SmarterForge Codex session are still alive - `ListAgents` shows no reachable peer sessions right now; the 10-16 Codex handoff warns not to infer liveness from session metadata either way. advance-po-reader#53 (that project's own name-cleanup PR) is still open, not merged.
-- Whether SmarterForge (the Program Owner's dad, `charlieredondo/SmarterCommerce`) has moved since re-pinning to v0.7.0 and getting a clean review - handoff issue #52 still shows only the same 2 comments from 2026-10-16, no new activity.
+- Whether SmarterForge (`charlieredondo/SmarterCommerce`) has moved since re-pinning to v0.7.0 and getting a clean review - handoff issue #52 still shows only the same 2 comments from 2026-10-16, no new activity.
 - The exact state of the Codex-only "PO session" and "SmarterForge session" interactive terminals the 10-16 handoff describes (`orchestrator-sessions/2026-10-16/`) - not re-inspected this checkpoint, per that handoff's own "do not restart automatically" caution.
 
 ## 6. Rules learned or reinforced this window
