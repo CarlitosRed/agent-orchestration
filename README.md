@@ -25,10 +25,10 @@ Each project lives on GitHub (private) with local copies, and runs on a pinned f
 | Folder | Holds | State |
 | --- | --- | --- |
 | `docs/` | the map, roles and names, the change-proposal process, decisions, design notes | F0 done, growing |
-| `ideas/` | ideas register and one note per source | 18 entries (pstack, advisor, a video on context/caching, Codex failover + local-model Operations Clerk) |
+| `ideas/` | ideas register and one note per source | 19 entries (pstack, advisor, a video on context/caching, Codex failover + local-model Operations Clerk, multiagent dispatch preflight) |
 | `rules/` | the rules (R1-R27) with the enforcer of each | F1, mostly real enforcers now - F6 |
 | `templates/` | task card, builder, reviewer, review round, ready-for-review, vendor-as-subagent, a CI workflow | F1, kept current with F6's builds |
-| `tools/` | `gate` (231 tests), `class-ledger` (77), `claims-ledger` (24), `usage-ledger` (17), `verify-manifest` (13), `blinded-eval` (10), `benchmark` (30) | F2-F6, 402 tests total, all offline |
+| `tools/` | `gate` (231 tests), `class-ledger` (77), `claims-ledger` (24), `usage-ledger` (17), `verify-manifest` (13), `blinded-eval` (10), `benchmark` (30), `dispatch-plan` (25) | F2-F6 plus opt-in dispatch preflight, 427 tests total, all offline |
 | `skills/` | model-agnostic SKILL.md files: verification (create/maintain/demo), `handoff`, `no-comments`, `onboard-project`, `retrofit-project` | F4-F6 |
 | `adapters/` | what a project must provide (`.orchestration/`: pin, gate config, desk/commands/roles, leaks, verify) | career-agent-hq onboarded (merged); advance-po-reader retrofitted, open for its own review (`advance-po-reader#51`) |
 | `vendors/` | per-vendor capability profile | `codex.md` real and tested; `claude.md` not written yet |
