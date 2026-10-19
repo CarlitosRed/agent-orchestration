@@ -1,5 +1,5 @@
 # Multi-kind class probes (built 2026-10-15)
-Carlos's call on the one open question below: a **closed enum**, not free text - a class's kinds are a fixed set declared once, when the class is opened, and never silently grown later. Built into `tools/class-ledger/ledger.py` (`--kinds`, `--of-kind`, `--kind-sweep`), 11 new tests, 77/77 pass.
+The Program Owner's call on the one open question below: a **closed enum**, not free text - a class's kinds are a fixed set declared once, when the class is opened, and never silently grown later. Built into `tools/class-ledger/ledger.py` (`--kinds`, `--of-kind`, `--kind-sweep`), 11 new tests, 77/77 pass.
 The historical leak (C1, part of L1/L13/L24/L25/L30) was specific: a class generalized as "any alias" (symlink, junction, short name, stream) was closed after a sweep that only checked ONE kind, so later rounds kept finding "new" instances that were really just unchecked kinds of the same class. The original fix idea named those exact kinds - but `symlink`/`junction`/`short name`/`stream` are one project's filesystem concepts, not a framework one. This generalizes the mechanism instead of hardcoding that project's vocabulary into the framework (`AGENTS.md`: write roles and mechanisms, not project specifics).
 
 ## The generic version

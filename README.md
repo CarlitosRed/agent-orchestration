@@ -2,7 +2,7 @@
 
 A way of programming and managing agents. Roles, rules, a merge gate, templates, skills and a review loop that any project can run on, with any vendor's agents (Claude, Codex, others).
 
-Owner: Carlos (CarlitosRed). Public as of 2026-10-15 (`docs/decisions.md`). Contributors work by pull request and only the PM approves framework changes.
+Owner: CarlitosRed. Public as of 2026-10-16 (`docs/decisions.md`). Contributors work by pull request and only the Program Owner approves framework changes.
 
 ## The idea in one picture
 ```
@@ -17,7 +17,7 @@ advance-po-reader (project)                 career-agent-hq (project)
 Each project lives on GitHub (private) with local copies, and runs on a pinned framework version. Projects never edit the framework.
 
 ## Who changes what
-- Only the Program Owner (Carlos) approves a change to the framework; the Orchestrator proposes.
+- Only the Program Owner approves a change to the framework; the Orchestrator proposes.
 - Build Engineers and Reviewers in projects log leaks and friction; the Orchestrator turns them into a framework change proposal (see `docs/change-proposals.md`); the Program Owner approves or rejects it.
 - New ideas from videos, repos and docs go through the intake pipeline in `ideas/README.md`.
 

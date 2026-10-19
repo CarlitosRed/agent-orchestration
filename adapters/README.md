@@ -46,7 +46,7 @@ A project's `gate.json` `vendors` map may name one vendor, two (today's default:
 
 A single-vendor project:
 - sets `cross_vendor: false` on every tier that needs review, and names two distinct, specific identities in `same_vendor_reviewers` (not "anyone from the vendor" - an unlisted signer of the author's own vendor is still refused, same as a two-vendor project) - for example two separately-launched sessions of the same vendor, one building, one reviewing;
-- additionally sets `owner_approval: true` on every tier that requires any `approvals`, not only the tier that would otherwise need it (today's default tier shape needs it starting at tier 3 only; a single-vendor project's tier 2 behaves like tier 3's owner-approval requirement instead). Carlos's own call, 2026-10-15: a deliberate compensating control, since there is no cross-vendor check to catch what a single vendor's correlated blind spots miss, so the Program Owner's own sign-off is pulled in more often instead.
+- additionally sets `owner_approval: true` on every tier that requires any `approvals`, not only the tier that would otherwise need it (today's default tier shape needs it starting at tier 3 only; a single-vendor project's tier 2 behaves like tier 3's owner-approval requirement instead). The Program Owner's own call, 2026-10-15: a deliberate compensating control, since there is no cross-vendor check to catch what a single vendor's correlated blind spots miss, so the Program Owner's own sign-off is pulled in more often instead.
 - carries, as a standing fact about the project rather than a one-time warning: no cross-vendor review signal, ever, and a vendor outage is a single point of failure with no fallback vendor to route around it.
 
 ## Handoff (cross-orchestrator messages)
