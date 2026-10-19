@@ -25,7 +25,7 @@ Each project lives on GitHub (private) with local copies, and runs on a pinned f
 | Folder | Holds | State |
 | --- | --- | --- |
 | `docs/` | the map, roles and names, the change-proposal process, decisions, design notes | F0 done, growing |
-| `ideas/` | ideas register and one note per source | 15 entries (pstack, advisor, a video on context/caching) |
+| `ideas/` | ideas register and one note per source | 18 entries (pstack, advisor, a video on context/caching, Codex failover + local-model Operations Clerk) |
 | `rules/` | the rules (R1-R27) with the enforcer of each | F1, mostly real enforcers now - F6 |
 | `templates/` | task card, builder, reviewer, review round, ready-for-review, vendor-as-subagent, a CI workflow | F1, kept current with F6's builds |
 | `tools/` | `gate` (231 tests), `class-ledger` (77), `claims-ledger` (24), `usage-ledger` (17), `verify-manifest` (13), `blinded-eval` (10), `benchmark` (30) | F2-F6, 402 tests total, all offline |
