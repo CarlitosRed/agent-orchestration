@@ -27,4 +27,4 @@ No live dispatcher, filesystem locks, queue backoff, evidence-arbitration change
 or interface is added. A prospective project trial is needed to evaluate effects
 on integration failures, duplicate work and usage. The source experiments were
 not reproduced, and their model comparisons are not treated as runtime guidance.
-No source text is used as instructions. I-017/I-018 are reserved by open PR #62.
+No source text is used as instructions. I-017 and I-018 were taken by the merged #62, so this note is I-019.

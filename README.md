@@ -2,7 +2,7 @@
 
 A way of programming and managing agents. Roles, rules, a merge gate, templates, skills and a review loop that any project can run on, with any vendor's agents (Claude, Codex, others).
 
-Owner: Carlos (CarlitosRed). Private. Even with outside contributors it stays private; contributors work by pull request and only the PM approves framework changes.
+Owner: CarlitosRed. Public as of 2026-10-16 (`docs/decisions.md`). Contributors work by pull request and only the Program Owner approves framework changes.
 
 ## The idea in one picture
 ```
@@ -17,7 +17,7 @@ advance-po-reader (project)                 career-agent-hq (project)
 Each project lives on GitHub (private) with local copies, and runs on a pinned framework version. Projects never edit the framework.
 
 ## Who changes what
-- Only the Program Owner (Carlos) approves a change to the framework; the Orchestrator proposes.
+- Only the Program Owner approves a change to the framework; the Orchestrator proposes.
 - Build Engineers and Reviewers in projects log leaks and friction; the Orchestrator turns them into a framework change proposal (see `docs/change-proposals.md`); the Program Owner approves or rejects it.
 - New ideas from videos, repos and docs go through the intake pipeline in `ideas/README.md`.
 
@@ -25,7 +25,7 @@ Each project lives on GitHub (private) with local copies, and runs on a pinned f
 | Folder | Holds | State |
 | --- | --- | --- |
 | `docs/` | the map, roles and names, the change-proposal process, decisions, design notes | F0 done, growing |
-| `ideas/` | ideas register and one note per source | 15 entries (pstack, advisor, a video on context/caching) |
+| `ideas/` | ideas register and one note per source | 19 entries (pstack, advisor, a video on context/caching, Codex failover + local-model Operations Clerk, multiagent dispatch preflight) |
 | `rules/` | the rules (R1-R27) with the enforcer of each | F1, mostly real enforcers now - F6 |
 | `templates/` | task card, builder, reviewer, review round, ready-for-review, vendor-as-subagent, a CI workflow | F1, kept current with F6's builds |
 | `tools/` | `gate` (231 tests), `class-ledger` (77), `claims-ledger` (24), `usage-ledger` (17), `verify-manifest` (13), `blinded-eval` (10), `benchmark` (30), `dispatch-plan` (25) | F2-F6 plus opt-in dispatch preflight, 427 tests total, all offline |

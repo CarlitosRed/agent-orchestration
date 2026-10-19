@@ -1,5 +1,5 @@
 # Vendor-neutral orchestrator handoff (designed 2026-10-14, not yet used for real)
-Replaces the earlier sketch in this file. Carlos: use GitHub itself as the channel, not a product-specific session feature, and keep token cost near zero on both ends.
+Replaces the earlier sketch in this file. Program Owner's direction: use GitHub itself as the channel, not a product-specific session feature, and keep token cost near zero on both ends.
 
 ## The mechanism: GitHub issues on the framework repo, as the shared bus
 Not a pull request - a PR means a code change under review; a handoff is a note, and an issue is the right weight for that. Every project already needs the framework repo's URL to read its pinned tag, so there is no new discovery problem: the framework repo's Issues tab is the one place every orchestrator, of any vendor, already knows to look.
