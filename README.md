@@ -2,7 +2,7 @@
 
 A way of programming and managing agents. Roles, rules, a merge gate, templates, skills and a review loop that any project can run on, with any vendor's agents (Claude, Codex, others).
 
-Owner: Carlos (CarlitosRed). Private. Even with outside contributors it stays private; contributors work by pull request and only the PM approves framework changes.
+Owner: Carlos (CarlitosRed). Public as of 2026-10-15 (`docs/decisions.md`). Contributors work by pull request and only the PM approves framework changes.
 
 ## The idea in one picture
 ```
