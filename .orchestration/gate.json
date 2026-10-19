@@ -1,0 +1,34 @@
+{
+  "_about": "Gate config for agent-orchestration itself. Changing this file is a protected-path change. Branch convention: Claude PRs start claude/, Codex PRs start codex/ (the gate reads the author's vendor from the head branch).",
+  "schema_version": 1,
+  "repo": "",
+  "base": "main",
+  "tiers": [
+    {"label": "tier-1", "level": 1, "name": "docs and notes", "owner_approval": true,
+     "allowed_paths": ["docs/*", "ideas/*", "audits/*", "README.md", "RESUME-framework-orchestrator.md"]},
+    {"label": "tier-2", "level": 2, "name": "tools, skills, templates, vendors", "approvals": 1,
+     "owner_approval": true, "body_headings": true},
+    {"label": "tier-3", "level": 3, "name": "enforcers and policy", "approvals": 1, "plan_go": true,
+     "owner_approval": true, "body_headings": true}
+  ],
+  "vendors": {
+    "claude": {"names": ["Claude"], "branch_prefixes": ["claude/"]},
+    "codex": {"names": ["Codex"], "branch_prefixes": ["codex/"]}
+  },
+  "owner_signers": ["Program Owner"],
+  "protected_paths": [
+    "AGENTS.md",
+    "rules/*",
+    "tools/gate/*",
+    ".orchestration/*",
+    ".github/*",
+    "templates/*.yml",
+    "adapters/*",
+    "docs/tiers-and-approvals.md",
+    "docs/change-proposals.md",
+    "docs/roles-and-names.md"
+  ],
+  "protected_tier": 3,
+  "required_checks": ["tests"],
+  "body_headings": ["## Failure", "## Class", "## Fix", "## Proof", "## Affects", "## Rollback"]
+}
