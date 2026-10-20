@@ -20,7 +20,7 @@ python gate.py audit --range <old>..<new>
 | --- | --- | --- |
 | `check <PR>` | Prints every rule as PASS or FAIL for the PR's current head. Exit 0 only if all pass. | No |
 | `merge <PR> --as "<signature>"` | Runs `check`; if all pass, squash-merges exactly that head (`--match-head-commit`) with a `Gate-Record:` body. `--dry-run` prints the command only. | Yes |
-| `scan` | Forbidden files and secrets, by name and by content (a PDF renamed `.txt` is still a PDF). `--range`/`--outgoing` read every commit, so a file added then removed is still caught. | No |
+| `scan` | Forbidden files and secrets, by name and by content (a PDF renamed `.txt` is still a PDF; UTF-16 text, which Windows tools write by default, is read as text, other NUL-containing files are treated as binary). `--range`/`--outgoing` read every commit, so a file added then removed is still caught. | No |
 | `paths` | How many tracked files each protected glob matches, to catch typos. | No |
 | `audit --range A..B` | Flags first-parent commits with no valid `Gate-Record:` line, or an owner-tier record without `owner=yes`. | No |
 
@@ -34,7 +34,7 @@ Exit codes: 0 passed, 1 a rule failed, 2 the tool could not run (config error, `
 | `signals` | No comment looks like a signal but fails to count: verdict for the head buried after other text, unsigned verdict for the head, commit id shorter than `verdict_sha_min_length`, invisible character before the signature. |
 | `branch` | (only if `forbidden_head_prefixes` is set) the head branch is allowed as a PR head. |
 | `tier` | Exactly one tier label; raised (never lowered) by protected paths and `allowed_paths`; non-mergeable tiers never pass. |
-| `files` | The complete changed-file list (paginated, proven against GitHub's own count, pinned to the same base, head and count before and after reading) has no forbidden file under its new or old name; fewer than 3000 files. Every name, branch, id and count is validated as exact text or a real integer first. |
+| `files` | The complete changed-file list (paginated, proven against GitHub's own count, pinned to the same base, head and count before and after reading; the second, full read is the one judged, so a hold, label or check posted meanwhile counts) has no forbidden file under its new or old name; fewer than 3000 files. Every name, branch, id and count is validated as exact text or a real integer first. |
 | `comments` | Fewer than 100 comments, so the conversation is read in full. |
 | `check:<name>` | Each `required_checks` entry succeeded on the head, in every run. |
 | `evidence:<heading>` | Tiers with `body_headings`: each heading is in the PR body. |
