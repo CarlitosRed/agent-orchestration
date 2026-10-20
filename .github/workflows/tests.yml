@@ -29,6 +29,28 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Secret and forbidden-file scan (every commit of the change)
+        # Runs FIRST, before any code from the change executes (the suites and the hygiene script are part of
+        # the change and could overwrite the scanner). A pull request is scanned by the BASE commit's scanner
+        # and config, so it cannot weaken the scan it is judged by; a push to main is scanned by its own tree
+        # (it already passed the gate as a pull request). The range covers every commit, so a secret added and
+        # removed again inside one PR is still found. Editing this workflow is a protected-path change.
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.sha }}
+        run: |
+          if [ "$EVENT" = pull_request ]; then
+            gate=.trusted/tools/gate/gate.py; config=.trusted/.orchestration/gate.json
+            python -B "$gate" --config "$config" scan --range "$BASE_SHA..$HEAD_SHA"
+          elif echo "$BEFORE" | grep -qE '^0+$'; then
+            python -B tools/gate/gate.py --config .orchestration/gate.json scan
+          else
+            python -B tools/gate/gate.py --config .orchestration/gate.json scan --range "$BEFORE..$AFTER"
+          fi
+
       - name: Run every offline suite
         shell: bash
         run: |
@@ -56,22 +78,3 @@ jobs:
       - name: Repo hygiene checks
         run: python -B tools/hygiene/hygiene.py check
 
-      - name: Secret and forbidden-file scan (every commit of the change)
-        # A pull request is scanned by the BASE commit's scanner and config, so it cannot weaken the scan it
-        # is judged by; a push to main is scanned by its own tree (it already passed the gate as a pull request).
-        # The range covers every commit, so a secret added and removed again inside one PR is still found.
-        env:
-          EVENT: ${{ github.event_name }}
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-          BEFORE: ${{ github.event.before }}
-          AFTER: ${{ github.sha }}
-        run: |
-          if [ "$EVENT" = pull_request ]; then
-            gate=.trusted/tools/gate/gate.py; config=.trusted/.orchestration/gate.json
-            python -B "$gate" --config "$config" scan --range "$BASE_SHA..$HEAD_SHA"
-          elif echo "$BEFORE" | grep -qE '^0+$'; then
-            python -B tools/gate/gate.py --config .orchestration/gate.json scan
-          else
-            python -B tools/gate/gate.py --config .orchestration/gate.json scan --range "$BEFORE..$AFTER"
-          fi
