@@ -11,14 +11,14 @@ At about 60 percent of context, when the Program Owner says "checkpoint", or at 
 3. What it waits for, and from whom.
 4. What it did not check.
 5. Decisions not yet written in a PR comment or the decision log.
-6. Rules learned this session that must not be rediscovered.
+6. Rules learned this session that must not be rediscovered, each citing its row in `.orchestration/leaks.md` (`L<n>`); a lesson with no row gets a row first, so "seen twice" (R11) can be counted.
 7. Usage: the windows and when they reset.
 8. Next three actions.
 Later in the same session, add dated `UPDATE` sections; the last one is headed `FINAL UPDATE` and overrides everything above it.
 
 Standard checkpoint prompt:
 ```
-Checkpoint now. Write <audits>/handoff-<name>-<date>.md (new file; edit no other file). One screen of facts, no prose: PRs and head commits, what you wait for, what you did not check, decisions not yet written down, next three actions. Reply with the path only.
+Checkpoint now. Write <audits>/handoff-<name>-<date>.md (new file; edit no other file). One screen of facts, no prose: PRs and head commits, what you wait for, what you did not check, decisions not yet written down, rules learned (each citing its leak row, or add one), next three actions. Reply with the path only.
 ```
 
 ## The resume prompt
