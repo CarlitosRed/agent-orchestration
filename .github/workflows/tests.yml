@@ -43,3 +43,6 @@ jobs:
             exit 1
           fi
           exit "$status"
+
+      - name: Repo hygiene checks
+        run: python -B tools/hygiene/hygiene.py check

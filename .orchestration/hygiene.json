@@ -1,0 +1,49 @@
+{
+  "_about": "Config for tools/hygiene/hygiene.py. Changing this file is a protected-path change. exempt_files freezes the dated historical records that still hold the denylisted word; a NEW file is never exempt.",
+  "vendor_words": [
+    "claude",
+    "codex",
+    "gemini",
+    "openai",
+    "anthropic",
+    "cursor",
+    "chatgpt"
+  ],
+  "vendor_free_paths": [
+    "rules/*",
+    "templates/*",
+    "skills/*"
+  ],
+  "log_files": [
+    {
+      "path": "docs/decisions.md",
+      "max_chars": 600,
+      "since": "2026-10-20"
+    }
+  ],
+  "no_derivable_numbers": {
+    "paths": [
+      "README.md"
+    ],
+    "patterns": [
+      "\\bR1-R\\d+",
+      "\\b\\d+ tests?\\b",
+      "\\b\\d+ entries\\b"
+    ]
+  },
+  "sweep": {
+    "hash_file": ".orchestration/sweep-hashes.txt",
+    "exempt_files": [
+      "audits/handoff-framework-orchestrator-2026-10-15-2.md",
+      "audits/handoff-framework-orchestrator-2026-10-15-3.md",
+      "audits/handoff-framework-orchestrator-2026-10-15-4.md",
+      "audits/handoff-framework-orchestrator-2026-10-15.md",
+      "audits/handoff-framework-orchestrator-2026-10-19.md",
+      "docs/framework-map.md",
+      "ideas/2026-10-13-pstack-and-advisor.md",
+      "ideas/2026-10-14-context-and-cache-efficiency.md",
+      "ideas/2026-10-14-pstack-no-comments-and-swarm.md",
+      "ideas/2026-10-15-x-post-agent-discovery-architecture.md"
+    ]
+  }
+}

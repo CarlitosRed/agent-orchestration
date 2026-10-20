@@ -1,3 +1,5 @@
+> HISTORICAL (2026-10-13 draft). It uses the retired names "PM" and "Claudio"; the current names are in `docs/roles-and-names.md` and the current state is in `STATE.md` and `README.md`.
+
 # Agent orchestration framework: the map (Claudio · PM 5, 2026-10-13; DRAFT for Carlos)
 Carlos's brief (2026-10-13): the framework for programming and managing agents is the product; PO Reader and Careers Agent Headquarters run on it. PO work is paused. Three repos. Only the PM (Carlos's voice) changes the framework. Model agnostic (Claude, Codex, others) and multimodal. Fewer review iterations (we saw 9 on one PR) through loops that converge.
 
