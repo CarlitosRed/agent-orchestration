@@ -1,0 +1,41 @@
+name: gate pre-review
+# Dry run of the merge gate on every PR, before review (R16, "process gates up front").
+# The gate and its config come from the BASE branch, never the PR head: a PR that edits
+# tools/gate/ or .orchestration/gate.json cannot loosen the rules it is judged by.
+# Ignored rules are the ones not expected to hold yet or that cannot be fixed by the author:
+#   review, owner  - come later, from the other vendor and the Program Owner
+#   plan           - the Program Owner's signed go
+#   check:tests    - the required `tests` check runs in parallel with this job and would race it
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited, labeled, unlabeled, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: read
+  checks: read
+  statuses: read
+
+jobs:
+  pre-review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch the gate from the base branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: .trusted
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run the gate dry run
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          python .trusted/tools/gate/gate.py --config .trusted/.orchestration/gate.json \
+            check "$PR_NUMBER" --ignore review,owner,plan,check:tests
