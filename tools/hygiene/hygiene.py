@@ -49,9 +49,27 @@ def load_config(path):
         if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", entry.get("since", "0000-00-00")):
             raise ConfigError("log_files since must be YYYY-MM-DD")
     if "no_derivable_numbers" in cfg:
-        only(cfg["no_derivable_numbers"], DERIVABLE_KEYS, "no_derivable_numbers")
+        spec = cfg["no_derivable_numbers"]
+        only(spec, DERIVABLE_KEYS, "no_derivable_numbers")
+        for name in ("paths", "patterns"):
+            values = spec.get(name)
+            if not isinstance(values, list) or not values or not all(isinstance(v, str) for v in values):
+                raise ConfigError(f"no_derivable_numbers.{name}: a present check needs a non-empty list of strings "
+                                  "(leave the whole key out to disable it)")
+        for pattern in spec["patterns"]:
+            try:
+                re.compile(pattern)
+            except re.error as exc:
+                raise ConfigError(f"no_derivable_numbers.patterns: '{pattern}' is not a regular expression: {exc}") from exc
     if "sweep" in cfg:
-        only(cfg["sweep"], SWEEP_KEYS, "sweep")
+        spec = cfg["sweep"]
+        only(spec, SWEEP_KEYS, "sweep")
+        if not isinstance(spec.get("hash_file"), str) or not spec["hash_file"]:
+            raise ConfigError("sweep.hash_file: a present sweep needs the path of its hash file "
+                              "(leave the whole key out to disable it)")
+        exempt = spec.get("exempt_files", [])
+        if not isinstance(exempt, list) or not all(isinstance(v, str) for v in exempt):
+            raise ConfigError("sweep.exempt_files: expected a list of strings")
     return cfg
 
 

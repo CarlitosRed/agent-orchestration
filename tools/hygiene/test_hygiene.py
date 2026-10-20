@@ -198,6 +198,33 @@ class ConfigTests(unittest.TestCase):
         code, _ = Repo(self, {"a.md": "x\n"}, {"_about": "note", "vendor_words": []}).check()
         self.assertEqual(code, 0)
 
+    def refused(self, config):
+        r = Repo(self, {"a.md": "99 tests\n"}, config)
+        with self.assertRaises(hygiene.ConfigError):
+            r.check()
+
+    def test_an_enabled_derivable_numbers_check_must_be_complete(self):
+        self.refused({"no_derivable_numbers": {"paths": ["a.md"]}})
+        self.refused({"no_derivable_numbers": {"patterns": ["\\d+ tests"]}})
+        self.refused({"no_derivable_numbers": {"paths": ["a.md"], "patterns": []}})
+        self.refused({"no_derivable_numbers": {"paths": [], "patterns": ["x"]}})
+        self.refused({"no_derivable_numbers": {}})
+
+    def test_derivable_numbers_wrong_types_and_bad_regex_are_refused(self):
+        self.refused({"no_derivable_numbers": {"paths": "a.md", "patterns": ["x"]}})
+        self.refused({"no_derivable_numbers": {"paths": ["a.md"], "patterns": [5]}})
+        self.refused({"no_derivable_numbers": {"paths": ["a.md"], "patterns": ["("]}})
+
+    def test_a_complete_derivable_numbers_check_still_works(self):
+        r = Repo(self, {"a.md": "99 tests\n"}, {"no_derivable_numbers": {"paths": ["a.md"], "patterns": ["\\d+ tests"]}})
+        self.assertEqual(r.check()[0], 1)
+
+    def test_sweep_must_name_its_hash_file(self):
+        self.refused({"sweep": {"exempt_files": []}})
+        self.refused({"sweep": {}})
+        self.refused({"sweep": {"hash_file": 5}})
+        self.refused({"sweep": {"hash_file": "h.txt", "exempt_files": "a.md"}})
+
     def test_cli_exit_codes(self):
         r = Repo(self, {"a.md": "x\n"}, {})
         script = os.path.join(HERE, "hygiene.py")

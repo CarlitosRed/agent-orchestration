@@ -1232,6 +1232,41 @@ class WhichDiffTests(unittest.TestCase):
         self.assertFalse(safe(FakeGH(pr(files=[{"path": "app/ordinary.py"}], number=8))))
 
 
+class FreshStateTests(unittest.TestCase):
+    """Comments, labels and checks are judged as of the second look, so a hold or a failing check that lands while
+    the file list is being read still blocks the merge."""
+
+    def merge_with_later(self, **later):
+        gh = FakeGH(pr(files=[{"path": "app/ordinary.py"}]), after=later)
+        return gh, try_merge(gh)
+
+    def test_control_without_a_change_merges(self):
+        gh, (code, _) = self.merge_with_later()
+        self.assertEqual(code, 0)
+        self.assertEqual(len(gh.merged()), 1)
+
+    def test_a_hold_posted_between_the_reads_blocks_the_merge(self):
+        hold = comment(OWNER, "hold", "2099-01-01T00:00:00Z")
+        gh, (code, report) = self.merge_with_later(comments=[go(), approve(), hold])
+        self.assertNotEqual(code, 0)
+        self.assertEqual(gh.merged(), [])
+        self.assertIn("hold", report)
+
+    def test_a_check_that_fails_between_the_reads_blocks_the_merge(self):
+        failing = [{"__typename": "CheckRun", "name": "tests", "status": "COMPLETED", "conclusion": "FAILURE"}]
+        gh, (code, _) = self.merge_with_later(statusCheckRollup=failing)
+        self.assertNotEqual(code, 0)
+        self.assertEqual(gh.merged(), [])
+
+    def test_a_label_removed_between_the_reads_is_seen(self):
+        pull = g.fetch_pr(FakeGH(pr(files=[{"path": "app/ordinary.py"}]), after={"labels": []}), cfg(), 7)
+        self.assertEqual(pull["labels"], [])
+
+    def test_the_file_list_is_kept_from_the_pinned_read(self):
+        pull = g.fetch_pr(FakeGH(pr(files=[{"path": "app/ordinary.py"}]), after={"comments": []}), cfg(), 7)
+        self.assertEqual([f["path"] for f in pull["files"]], ["app/ordinary.py"])
+
+
 class RenameStatusTests(unittest.TestCase):
     def one(self, status, prev):
         entry = {"filename": "app/ordinary.py"}
@@ -1796,6 +1831,27 @@ class ScanTests(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertIn("API key", out)
         self.assertNotIn(fake, out)
+
+    def test_secret_in_utf16_text_is_caught(self):
+        fake = "KEY = 'sk-" + "Z" * 24 + "'\n"
+        for label, data in {"bom": fake.encode("utf-16"), "le": fake.encode("utf-16-le"),
+                            "be": fake.encode("utf-16-be")}.items():
+            d, git = self.repo_with({"cfg.txt": data})
+            git("commit", "-q", "-m", "x")
+            code, out = self.scan(d)
+            self.assertEqual(code, 1, label)
+            self.assertIn("API key", out, label)
+            self.assertNotIn("Z" * 24, out, label)
+
+    def test_binary_with_nul_bytes_is_still_not_read_as_text(self):
+        g_text = g.decode_text(bytes(range(256)) * 40)
+        self.assertIsNone(g_text)
+        self.assertIsNone(g.decode_text(b"\x00" * 100 + b"abc"))
+
+    def test_decode_text_reads_plain_utf8_and_utf16(self):
+        self.assertEqual(g.decode_text("héllo".encode("utf-8")), "héllo")
+        self.assertEqual(g.decode_text("hello".encode("utf-16-le")), "hello")
+        self.assertEqual(g.decode_text("hello".encode("utf-16-be")), "hello")
 
     def test_secret_in_an_allowed_file_is_still_caught(self):
         d, git = self.repo_with({".env.example": ("API_KEY=sk-" + "Y" * 24 + "\n").encode()})

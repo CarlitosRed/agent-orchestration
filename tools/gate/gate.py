@@ -720,26 +720,22 @@ def fetch_files(gh, repo, number):
     return files
 
 
-def snapshot(gh, repo, number, fields):
-    got = json.loads(gh(["pr", "view", str(number), "--repo", repo, "--json", ",".join(fields)]))
-    if not isinstance(got, dict):
-        raise GateError("GitHub's answer about the pull request is not an object; cannot verify the files")
-    return got
-
-
 def fetch_pr(gh, cfg, number):
     """The pull request plus its complete file list, pinned: the fields that say which diff it is are read
-    before and after the list, and any difference (or any of them being unreadable) refuses the read."""
+    before and after the list, and any difference (or any of them being unreadable) refuses the read. The second
+    read is the full one and is what gets judged, so a hold, label or check that lands while the list is being
+    read counts. The remote read and the merge still cannot be made atomic; the merge pins the head commit."""
     repo = repo_of(gh, cfg)
     pr = json.loads(gh(["pr", "view", str(number), "--repo", repo, "--json", VIEW_FIELDS]))
     check_identity(pr, number, "first")
-    pr["files"] = fetch_files(gh, repo, number)
-    after = snapshot(gh, repo, number, SNAPSHOT_FIELDS)
+    files = fetch_files(gh, repo, number)
+    after = json.loads(gh(["pr", "view", str(number), "--repo", repo, "--json", VIEW_FIELDS]))
     check_identity(after, number, "second")
     if any(type(after[k]) is not type(pr[k]) or after[k] != pr[k] for k in SNAPSHOT_FIELDS):
         raise GateError("the pull request changed while its file list was being read (its base, head or file count "
                         "moved); run the check again")
-    return pr
+    after["files"] = files
+    return after
 
 
 # ---------------------------------------------------------------- check
@@ -1057,6 +1053,20 @@ def cmd_audit(git, cfg, rng, out=print):
 
 # ---------------------------------------------------------------- scan
 
+def decode_text(data):
+    """The text of a file, or None when it is binary. UTF-16 (a byte-order mark, or NUL bytes on one parity only,
+    which is what ASCII-heavy UTF-16 looks like) is text: Windows tools write it by default."""
+    if data.startswith((b"\xff\xfe", b"\xfe\xff")):
+        return data.decode("utf-16", errors="replace")
+    sample = data[:8192]
+    if b"\x00" not in sample:
+        return data.decode("utf-8", errors="replace")
+    odd, even, half = sample[1::2].count(0), sample[0::2].count(0), len(sample) // 2
+    if half and max(odd, even) >= half * 0.3 and min(odd, even) <= half * 0.02:
+        return data.decode("utf-16-le" if odd > even else "utf-16-be", errors="replace")
+    return None
+
+
 def scan_blob(path, data, cfg):
     problems = []
     if not match_any(path, cfg.scan_allow):
@@ -1068,8 +1078,8 @@ def scan_blob(path, data, cfg):
                 break
         if len(data) > cfg.max_file_mb * 1024 * 1024:
             problems.append(f"larger than {cfg.max_file_mb} MB")
-    if b"\x00" not in data[:8192]:  # secrets are looked for even in allowed text files
-        text = data.decode("utf-8", errors="replace")
+    text = decode_text(data)
+    if text is not None:  # secrets are looked for even in allowed text files
         for rx, label in cfg.secrets:
             if rx.search(text):
                 problems.append(f"looks like: {label}")
