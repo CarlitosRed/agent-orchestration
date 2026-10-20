@@ -1,0 +1,3 @@
+# Words that must not appear in tracked text. SHA-256 of the lowercase word, never the word (this repo is public).
+# One hash per line; a trailing comment says what it is.
+7b85175b455060e3237e925f023053ca9515e8682a83c8b09911c724a1f8b75f  # the Program Owner's first name

@@ -25,13 +25,13 @@ Each project lives on GitHub (private) with local copies, and runs on a pinned f
 | Folder | Holds | State |
 | --- | --- | --- |
 | `docs/` | the map, roles and names, the change-proposal process, decisions, design notes | F0 done, growing |
-| `ideas/` | ideas register and one note per source | 19 entries (pstack, advisor, a video on context/caching, Codex failover + local-model Operations Clerk, multiagent dispatch preflight) |
-| `rules/` | the rules (R1-R27) with the enforcer of each | F1, mostly real enforcers now - F6 |
+| `ideas/` | ideas register and one note per source (pstack, advisor, caching, Codex failover, local-model clerk, dispatch preflight) | grows with each source |
+| `rules/` | the rules with the enforcer of each, and the leak classes | F1; most rules now have a real enforcer (F6) |
 | `templates/` | task card, builder, reviewer, review round, ready-for-review, vendor-as-subagent, a CI workflow | F1, kept current with F6's builds |
-| `tools/` | `gate` (231 tests), `class-ledger` (77), `claims-ledger` (24), `usage-ledger` (17), `verify-manifest` (13), `blinded-eval` (10), `benchmark` (30), `dispatch-plan` (25) | F2-F6 plus opt-in dispatch preflight, 427 tests total, all offline |
+| `tools/` | `gate`, `class-ledger`, `claims-ledger`, `usage-ledger`, `verify-manifest`, `blinded-eval`, `benchmark`, `dispatch-plan`, `hygiene` | F2-F6 plus the opt-in dispatch preflight and the hygiene checks; all offline, run by the `tests` workflow |
 | `skills/` | model-agnostic SKILL.md files: verification (create/maintain/demo), `handoff`, `no-comments`, `onboard-project`, `retrofit-project` | F4-F6 |
 | `adapters/` | what a project must provide (`.orchestration/`: pin, gate config, desk/commands/roles, leaks, verify) | career-agent-hq onboarded (merged); advance-po-reader retrofitted, open for its own review (`advance-po-reader#51`) |
-| `vendors/` | per-vendor capability profile | `codex.md` real and tested; `claude.md` not written yet |
+| `vendors/` | per-vendor capability profile, commands and quirks | `codex.md` and `claude-code.md`; each file says what was actually tested |
 
 ## Milestones
-F0 repos and skeleton (done) - F1 extract the core (done) - F2 gate as a tool (done, 227 tests) - F3 convergence loop (done, class-ledger) - F4 verification skill (built, untested on a real project) - F5 second project, career-agent-hq (done - retrofitted and merged, `career-agent-hq#1`; found and closed a real spec gap, the `verify/` documents-only opt-out) - F6 rule table and enforcers (done: R13, R14, R16, R18, R22 all have real enforcers now; the claims ledger is partial by design) - F7 vendor adapters (started: Codex's profile is real and tested; no other vendor yet, no third vendor tried). Details: `docs/framework-map.md`.
+F0 repos and skeleton (done) - F1 extract the core (done) - F2 gate as a tool (done) - F3 convergence loop (done, class-ledger) - F4 verification skill (built, untested on a real project) - F5 second project, career-agent-hq (done - retrofitted and merged, `career-agent-hq#1`; found and closed a real spec gap, the `verify/` documents-only opt-out) - F6 rule table and enforcers (done: R13, R14, R16, R18, R22 all have real enforcers now; the claims ledger is partial by design) - F7 vendor adapters (started: Codex's profile is real and tested; no other vendor yet, no third vendor tried). Details: `docs/framework-map.md`.

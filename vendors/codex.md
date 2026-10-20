@@ -37,6 +37,14 @@ Runs a code review directly against the repo, no human relay needed. **Live-smok
 
 Not yet confirmed: whether `codex review` works at all under the safer `workspace-write`/`elevated` modes (untested - this smoke test only proves the `danger-full-access` path); the exact shape of its output under `--json` (this run used plain prose, not structured output); behavior on a PR with real findings to flag, not a clean 2-line diff.
 
+## Review dispatch, confirmed 2026-10-19 (codex-cli 0.163.0, four real reviews of framework PRs #68, #69 and #70)
+- Command, from a detached worktree at the PR head: `codex --no-daemon review --base origin/main` (`--no-daemon` is needed for the desktop-app binary, see the install notes above). Run `codex --no-daemon doctor --summary` first.
+- `--base`, `--commit` and `--uncommitted` each refuse a custom `[PROMPT]` ("cannot be used with"). A review under these flags is therefore cold: the reviewer gets no checklist from the author, which also keeps it independent. Custom instructions need `codex exec` with a prompt file, whose sandbox caveats are in the next section.
+- The one doctor run that day reported 1 fail (`elevated Windows sandbox provisioning`), 3 warnings and 21 ok; the named exception above held, and all four reviews ran under `danger-full-access` and returned a review.
+- Output is prose only, with no `Approved` or `Not approved` line. The Orchestrator maps findings to a signed verdict, says so in the PR comment and posts Codex's text unchanged ("relayed").
+- In Windows PowerShell 5.1, `| Tee-Object -FilePath <file>` writes UTF-16, so read that file as UTF-16; a console may show long dashes as garbage characters, the text itself is fine.
+- Review quality varies: round 1 on a gate config found two real defects the author's own checks had missed; later rounds on small CI changes returned one short paragraph with no per-file reasoning. A short answer is a weak signal, not a proof.
+
 ## Known failure on this desk, root-caused (2026-10-14)
 Direct shell command execution fails 100% of the time (5/5 attempts across this session), always the same error: `Failed to create unified exec process: helper_unknown_error: setup refresh had errors`. **This is an open upstream Codex bug on Windows, not a local misconfiguration** - `codex doctor` reports it precisely: `elevated Windows sandbox provisioning recorded a structured failure`, `sandbox backend: elevated`, `sandbox provisioning: failed`. Public, open, currently-unresolved issues on `openai/codex` describe the identical failure (checked 2026-10-14): #46380, #51811, #52041, #52735 - the common root cause across them is the sandbox setup step trying to apply ACLs to runtime binaries Codex itself is currently executing, which Windows refuses. #51006 is an open feature *request* for a supported execution-only mode that skips this provisioning entirely; it does not exist yet.
 
@@ -45,7 +53,7 @@ Ruled out, in order, each a real attempt not a guess: Microsoft Defender exclusi
 **Any task needing an actual shell command (tests, git, a build step, a package manager) will hit this wall with no reliable workaround**, until OpenAI ships a fix or the execution-only mode requested in #51006. A pure file-edit task may still complete if Codex happens to route it through an MCP tool instead (as the file-write smoke test did) - that is incidental agent behavior, not something to depend on. **Do not point a real coding task at this desk's Codex dispatch until this clears upstream; re-run `codex doctor` after any Codex update and look for `sandbox provisioning: failed` before trying again.**
 
 ## Not yet confirmed
-- Whether `codex review`'s output is structured enough to feed directly into this framework's finding format (`docs/convergence-loop.md`'s finding record) or needs a parsing step - the 2026-10-15 smoke test above got plain prose, not `--json` output.
+- Whether `codex review`'s output can feed this framework's finding format (`docs/convergence-loop.md`'s finding record) directly: four reviews on 2026-10-19 all returned plain prose, so a parsing step (or a human mapping, as now) is still needed.
 - Whether `codex review` works at all under `workspace-write` or `elevated` sandbox modes, or only under `danger-full-access` as tested.
 - Behavior on a desk without an existing desktop-app login (whether `codex login` is interactive-only or scriptable).
 - Multi-desk or CI use (this was confirmed on one interactive desktop session only).
