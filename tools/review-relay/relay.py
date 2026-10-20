@@ -3,7 +3,7 @@
 
 build: signature, verdict first (R22), then the reviewer's text quoted unchanged. Refuses an empty review file,
        a verdict sha that is not 40 hex characters, and a body with a byte-order mark.
-post:  build, post with `gh pr comment --body-file`, then read the newest comment back and fail unless it holds
+post:  build, post with `gh pr comment --body-file`, then read that comment back by its URL and fail unless it holds
        the built body (a post that dropped text is caught while the PR is still open, not minutes later).
 Review files from Windows PowerShell 5.1 `Tee-Object` are UTF-16; this reads UTF-8 or UTF-16 with or without a mark.
 """
@@ -27,8 +27,8 @@ def read_text(path):
     data = Path(path).read_bytes()
     if data.startswith((b"\xff\xfe", b"\xfe\xff")):
         text = data.decode("utf-16")
-    elif b"\x00" in data[:4096]:
-        text = data.decode("utf-16-le" if data[1:2] == b"\x00" else "utf-16-be", errors="replace")
+    elif b"\x00" in data:
+        text = data.decode("utf-16-le" if data[1::2].count(0) >= data[0::2].count(0) else "utf-16-be", errors="replace")
     else:
         text = data.decode("utf-8-sig", errors="replace")
     return text.replace("\r\n", "\n").replace("\r", "\n").lstrip("﻿")
@@ -72,16 +72,17 @@ def post(pr, body, gh=run_gh, repo=None):
         handle.write(body)
         path = handle.name
     try:
-        gh(["pr", "comment", str(pr), *scope, "--body-file", path])
+        printed = gh(["pr", "comment", str(pr), *scope, "--body-file", path]).strip().splitlines()
+        url = printed[-1].strip() if printed else ""
         out = gh(["pr", "view", str(pr), *scope, "--json", "comments"])
     finally:
         Path(path).unlink(missing_ok=True)
-    comments = json.loads(out).get("comments", [])
-    if not comments:
-        raise RelayError("posted, but no comments are visible on the PR")
-    if comments[-1].get("body", "").strip() != body.strip():
-        raise RelayError("the newest comment does not match what was built: fix it by editing that comment")
-    return len(comments)
+    mine = [c for c in json.loads(out).get("comments", []) if url and c.get("url") == url]
+    if not mine:
+        raise RelayError(f"posted, but the new comment ({url or 'no url printed'}) is not visible on the PR")
+    if mine[0].get("body", "").strip() != body.strip():
+        raise RelayError(f"comment {url} does not match what was built: fix it by editing that comment")
+    return url
 
 
 def main(argv=None):
@@ -111,8 +112,7 @@ def main(argv=None):
             else:
                 sys.stdout.write(body)
         else:
-            count = post(args.pr, body, repo=args.repo)
-            print(f"posted and read back; PR now has {count} comments")
+            print(f"posted and read back: {post(args.pr, body, repo=args.repo)}")
     except (RelayError, OSError) as err:
         print(f"refused: {err}", file=sys.stderr)
         return 1

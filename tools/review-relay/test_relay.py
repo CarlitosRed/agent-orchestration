@@ -67,30 +67,50 @@ class ReadTextTests(unittest.TestCase):
                 "u16bom": b"\xff\xfe" + text.encode("utf-16-le"),
                 "u16nobom": text.encode("utf-16-le"),
                 "crlf": text.replace("\n", "\r\n").encode("utf-8"),
+                "u16le_nonascii_first": ("• [P2] keep the text\nnext").encode("utf-16-le"),
+                "u16be_nobom": text.encode("utf-16-be"),
             }
+            text_for = {"u16le_nonascii_first": "• [P2] keep the text\nnext"}
             for name, data in cases.items():
-                self.assertEqual(relay.read_text(write(tmp, name, data)), text, name)
+                self.assertEqual(relay.read_text(write(tmp, name, data)), text_for.get(name, text), name)
 
 
 class PostTests(unittest.TestCase):
-    def fake(self, drop_text=False):
+    URL = "https://example.test/pull/7#issuecomment-2"
+
+    def fake(self, drop_text=False, later_comment=False, print_url=True):
         seen = {}
 
         def gh(args, stdin=None):
             if args[:2] == ["pr", "comment"]:
                 path = args[args.index("--body-file") + 1]
                 seen["body"] = Path(path).read_text(encoding="utf-8")
-                return ""
+                return self.URL + "\n" if print_url else ""
             body = "" if drop_text else seen["body"]
-            return json.dumps({"comments": [{"body": "older"}, {"body": body}]})
+            comments = [{"url": "https://example.test/pull/7#issuecomment-1", "body": "older"},
+                        {"url": self.URL, "body": body}]
+            if later_comment:
+                comments.append({"url": "https://example.test/pull/7#issuecomment-3", "body": "someone else"})
+            return json.dumps({"comments": comments})
 
         return gh, seen
 
     def test_posted_and_matches(self):
         gh, seen = self.fake()
         body = relay.build("Independent Reviewer", "Codex", "approved", SHA, "ok", "me")
-        self.assertEqual(relay.post(7, body, gh=gh), 2)
+        self.assertEqual(relay.post(7, body, gh=gh), self.URL)
         self.assertEqual(seen["body"], body)
+
+    def test_a_comment_posted_by_someone_else_in_between_is_ignored(self):
+        gh, _ = self.fake(later_comment=True)
+        body = relay.build("Independent Reviewer", "Codex", "approved", SHA, "ok", "me")
+        self.assertEqual(relay.post(7, body, gh=gh), self.URL)
+
+    def test_no_printed_url_is_refused(self):
+        gh, _ = self.fake(print_url=False)
+        body = relay.build("Independent Reviewer", "Codex", "approved", SHA, "ok", "me")
+        with self.assertRaises(relay.RelayError):
+            relay.post(7, body, gh=gh)
 
     def test_read_back_mismatch_is_caught(self):
         gh, _ = self.fake(drop_text=True)
