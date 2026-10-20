@@ -5,7 +5,7 @@
   "base": "main",
   "tiers": [
     {"label": "tier-1", "level": 1, "name": "docs and notes", "owner_approval": true,
-     "allowed_paths": ["docs/*", "ideas/*", "audits/*", "README.md", "RESUME-framework-orchestrator.md"]},
+     "allowed_paths": ["docs/*", "ideas/*", "audits/*", "README.md", "STATE.md", "RESUME-framework-orchestrator.md", ".orchestration/leaks.md"]},
     {"label": "tier-2", "level": 2, "name": "tools, skills, templates, vendors", "approvals": 1, "plan_go": true,
      "owner_approval": true, "body_headings": true},
     {"label": "tier-3", "level": 3, "name": "enforcers and policy", "approvals": 1, "plan_go": true,
@@ -20,7 +20,7 @@
     "AGENTS.md",
     "rules/*",
     "tools/gate/*",
-    ".orchestration/*",
+    ".orchestration/gate.json",
     ".github/*",
     "templates/*.yml",
     "adapters/*",
