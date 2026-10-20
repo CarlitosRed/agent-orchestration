@@ -1,0 +1,45 @@
+name: tests
+# Runs every offline suite under tools/. A ResourceWarning on stderr fails the job:
+# `python -W error::ResourceWarning` alone does not, because the warning is raised while an
+# object is being finalised, where Python prints it and carries on with exit code 0.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run every offline suite
+        shell: bash
+        run: |
+          status=0
+          count=0
+          for dir in tools/*/; do
+            ls "$dir"test_*.py >/dev/null 2>&1 || continue
+            count=$((count + 1))
+            echo "::group::$dir"
+            python -B -W default::ResourceWarning -m unittest discover -s "$dir" -p 'test_*.py' 2> "$RUNNER_TEMP/stderr.txt" || status=1
+            cat "$RUNNER_TEMP/stderr.txt" >&2
+            if grep -q ResourceWarning "$RUNNER_TEMP/stderr.txt"; then
+              echo "::error::ResourceWarning in $dir"
+              status=1
+            fi
+            echo "::endgroup::"
+          done
+          echo "suites run: $count"
+          if [ "$count" -eq 0 ]; then
+            echo "::error::no test suites found under tools/"
+            exit 1
+          fi
+          exit "$status"

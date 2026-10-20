@@ -114,8 +114,10 @@ class AssignTests(Base):
         out2 = os.path.join(self.dir, "eval-b")
         self.ok("assign", "--a", a, "--b", b, "--out", out1, "--seed", "42")
         self.ok("assign", "--a", a, "--b", b, "--out", out2, "--seed", "42")
-        m1 = json.load(open(os.path.join(out1, ".mapping.json"), encoding="utf-8"))
-        m2 = json.load(open(os.path.join(out2, ".mapping.json"), encoding="utf-8"))
+        with open(os.path.join(out1, ".mapping.json"), encoding="utf-8") as fh:
+            m1 = json.load(fh)
+        with open(os.path.join(out2, ".mapping.json"), encoding="utf-8") as fh:
+            m2 = json.load(fh)
         self.assertEqual(m1["variant-1"]["label"], m2["variant-1"]["label"])
 
     def test_different_seeds_can_produce_different_assignments(self):
@@ -125,7 +127,8 @@ class AssignTests(Base):
         for seed in range(10):
             out = os.path.join(self.dir, f"eval-{seed}")
             self.ok("assign", "--a", a, "--b", b, "--out", out, "--seed", str(seed))
-            m = json.load(open(os.path.join(out, ".mapping.json"), encoding="utf-8"))
+            with open(os.path.join(out, ".mapping.json"), encoding="utf-8") as fh:
+                m = json.load(fh)
             labels.add(m["variant-1"]["label"])
         self.assertEqual(labels, {"a", "b"}, "across 10 different seeds, both assignments should occur")
 
