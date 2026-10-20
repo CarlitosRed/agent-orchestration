@@ -2,9 +2,19 @@ name: gate pre-review check
 # Copy into a project's own .github/workflows/. Runs the gate dry run the moment a PR opens or changes,
 # reporting every rule except review and owner approval (R16, "process gates up front" - these are not
 # expected to hold yet at this point; they still get checked for real at merge time).
+# The framework pin and the gate config are read from the PR's BASE commit, never its head, so a PR that
+# edits .orchestration/framework.pin or gate.json cannot loosen the rules it is judged by. A PR that adds
+# them for the first time (the base has none) has no base rules to loosen; it is judged by its own and the
+# run says so in a warning.
 on:
   pull_request:
-    types: [opened, synchronize, reopened]
+    types: [opened, synchronize, reopened, edited, labeled, unlabeled, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: read
+  checks: read
+  statuses: read
 
 jobs:
   pre-review-gate:
@@ -12,23 +22,37 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Read this project's framework pin
-        id: pin
+      - name: Check out the base commit (the rules a PR is judged by)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: .trusted
+
+      - name: Pick the pin and config
+        id: rules
         run: |
-          repo=$(grep '^repo:' .orchestration/framework.pin | sed 's/^repo: *//')
-          tag=$(grep '^tag:' .orchestration/framework.pin | sed 's/^tag: *//')
+          if [ -f .trusted/.orchestration/framework.pin ] && [ -f .trusted/.orchestration/gate.json ]; then
+            dir=.trusted/.orchestration
+          else
+            echo "::warning::The base commit has no .orchestration/framework.pin and gate.json, so this PR is judged by its own. Expected only for the PR that adds them."
+            dir=.orchestration
+          fi
+          repo=$(grep '^repo:' "$dir/framework.pin" | sed 's/^repo: *//')
+          tag=$(grep '^tag:' "$dir/framework.pin" | sed 's/^tag: *//')
           echo "repo=$repo" >> "$GITHUB_OUTPUT"
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "config=$dir/gate.json" >> "$GITHUB_OUTPUT"
 
       - name: Fetch the pinned framework (shallow, at the pinned tag only)
         env:
           FRAMEWORK_PIN_TOKEN: ${{ secrets.FRAMEWORK_PIN_TOKEN }}
+          PIN_REPO: ${{ steps.rules.outputs.repo }}
+          PIN_TAG: ${{ steps.rules.outputs.tag }}
         run: |
-          repo_no_scheme="${{ steps.pin.outputs.repo }}"
-          repo_no_scheme="${repo_no_scheme#https://}"
+          repo_no_scheme="${PIN_REPO#https://}"
           # Try a plain, unauthenticated clone first - this is the only path needed when the
           # framework repo is public, and it needs no secret at all.
-          if git clone --depth 1 --branch "${{ steps.pin.outputs.tag }}" \
+          if git clone --depth 1 --branch "$PIN_TAG" \
                "https://${repo_no_scheme}" .framework-pin 2>/tmp/clone-plain.err; then
             exit 0
           fi
@@ -44,7 +68,7 @@ jobs:
           # whitespace, and an embedded CR/space breaks the URL below with curl's "Malformed input
           # to a URL function" rather than an auth error.
           FRAMEWORK_PIN_TOKEN="$(printf '%s' "$FRAMEWORK_PIN_TOKEN" | tr -d '[:space:]')"
-          git clone --depth 1 --branch "${{ steps.pin.outputs.tag }}" \
+          git clone --depth 1 --branch "$PIN_TAG" \
             "https://x-access-token:${FRAMEWORK_PIN_TOKEN}@${repo_no_scheme}" .framework-pin
 
       - name: Set up Python
@@ -55,6 +79,8 @@ jobs:
       - name: Run the gate's pre-review check
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GATE_CONFIG: ${{ steps.rules.outputs.config }}
         run: |
-          python .framework-pin/tools/gate/gate.py --config .orchestration/gate.json check \
-            "${{ github.event.pull_request.number }}" --ignore review,owner
+          python .framework-pin/tools/gate/gate.py --config "$GATE_CONFIG" check \
+            "$PR_NUMBER" --ignore review,owner

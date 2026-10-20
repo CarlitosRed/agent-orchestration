@@ -5,6 +5,9 @@ name: gate audit
 # after every push to main, check that each new commit carries a Gate-Record line (written only by
 # the pinned `gate.py merge`). If one does not, open an issue so the Program Owner sees it within
 # minutes instead of never. Generalized from advance-po-reader's project-specific version (R23).
+# The framework pin and the gate config are read from the commit BEFORE the push, so a push cannot edit
+# the rules it is audited by. When that commit has no pin and config yet (the push that adds them, or the
+# first push to main) there were no rules to bypass and the run says so and stops.
 on:
   push:
     branches: [main]
@@ -21,23 +24,38 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Read this project's framework pin
-        id: pin
+      - name: Check out the previous main (the rules this push is audited by)
+        id: before
+        env:
+          BEFORE: ${{ github.event.before }}
         run: |
-          repo=$(grep '^repo:' .orchestration/framework.pin | sed 's/^repo: *//')
-          tag=$(grep '^tag:' .orchestration/framework.pin | sed 's/^tag: *//')
+          if echo "$BEFORE" | grep -qE '^0+$'; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "No previous commit on main; nothing to audit."
+            exit 0
+          fi
+          git worktree add --detach .trusted "$BEFORE"
+          if [ ! -f .trusted/.orchestration/framework.pin ] || [ ! -f .trusted/.orchestration/gate.json ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "The previous main has no .orchestration/framework.pin and gate.json; there were no rules to bypass."
+            exit 0
+          fi
+          repo=$(grep '^repo:' .trusted/.orchestration/framework.pin | sed 's/^repo: *//')
+          tag=$(grep '^tag:' .trusted/.orchestration/framework.pin | sed 's/^tag: *//')
           echo "repo=$repo" >> "$GITHUB_OUTPUT"
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
 
       - name: Fetch the pinned framework (shallow, at the pinned tag only)
+        if: steps.before.outputs.skip != 'true'
         env:
           FRAMEWORK_PIN_TOKEN: ${{ secrets.FRAMEWORK_PIN_TOKEN }}
+          PIN_REPO: ${{ steps.before.outputs.repo }}
+          PIN_TAG: ${{ steps.before.outputs.tag }}
         run: |
-          repo_no_scheme="${{ steps.pin.outputs.repo }}"
-          repo_no_scheme="${repo_no_scheme#https://}"
+          repo_no_scheme="${PIN_REPO#https://}"
           # Try a plain, unauthenticated clone first - this is the only path needed when the
           # framework repo is public, and it needs no secret at all.
-          if git clone --depth 1 --branch "${{ steps.pin.outputs.tag }}" \
+          if git clone --depth 1 --branch "$PIN_TAG" \
                "https://${repo_no_scheme}" .framework-pin 2>/tmp/clone-plain.err; then
             exit 0
           fi
@@ -53,19 +71,24 @@ jobs:
           # whitespace, and an embedded CR/space breaks the URL below with curl's "Malformed input
           # to a URL function" rather than an auth error.
           FRAMEWORK_PIN_TOKEN="$(printf '%s' "$FRAMEWORK_PIN_TOKEN" | tr -d '[:space:]')"
-          git clone --depth 1 --branch "${{ steps.pin.outputs.tag }}" \
+          git clone --depth 1 --branch "$PIN_TAG" \
             "https://x-access-token:${FRAMEWORK_PIN_TOKEN}@${repo_no_scheme}" .framework-pin
 
       - uses: actions/setup-python@v5
+        if: steps.before.outputs.skip != 'true'
         with:
           python-version: "3.12"
 
       - name: Audit the new commits
         id: audit
+        if: steps.before.outputs.skip != 'true'
         shell: bash
+        env:
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.sha }}
         run: |
-          python .framework-pin/tools/gate/gate.py --config .orchestration/gate.json \
-            audit --range "${{ github.event.before }}..${{ github.sha }}" 2>&1 | tee audit.txt
+          python .framework-pin/tools/gate/gate.py --config .trusted/.orchestration/gate.json \
+            audit --range "$BEFORE..$AFTER" 2>&1 | tee audit.txt
 
       - name: Open an issue when the gate was bypassed
         if: failure() && steps.audit.outcome == 'failure'
