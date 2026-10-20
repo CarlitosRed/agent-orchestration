@@ -94,13 +94,15 @@ OPTIONAL = {
     "secrets": DEFAULT_SECRETS,
     "max_file_mb": 5,
     "shared_account": True,
+    "owner_logins": [],
+    "distinct_accounts": False,
     "audit_exempt": [],
 }
 REQUIRED = ("schema_version", "tiers", "vendors", "owner_signers", "protected_paths", "protected_tier",
             "required_checks")
 TIER_KEYS = {"label", "level", "name", "record", "approvals", "plan_go", "owner_approval", "cross_vendor",
              "body_headings", "allowed_paths", "mergeable"}
-VENDOR_KEYS = {"names", "branch_prefixes"}
+VENDOR_KEYS = {"names", "branch_prefixes", "logins"}
 
 
 class GateError(Exception):
@@ -231,6 +233,7 @@ class Config:
         if not isinstance(vendors, dict) or not vendors:
             raise ConfigError("config 'vendors' must be a non-empty object of vendor id -> {names, branch_prefixes}")
         self.vendor_by_name, self.prefixes = {}, []
+        self.vendor_by_login, self.vendor_logins = {}, {}
         for vid, spec in vendors.items():
             if not vid.strip():
                 raise ConfigError("config vendor ids must be non-empty")
@@ -249,6 +252,15 @@ class Config:
                 self.vendor_by_name[_key(n)] = vid
             for p in prefixes:
                 self.prefixes.append((p, vid))
+            logins = spec.get("logins", [])
+            if not isinstance(logins, list) or not all(isinstance(v, str) and v and not any(c.isspace() for c in v)
+                                                       for v in logins):
+                raise ConfigError(f"config vendors['{vid}'].logins must be a list of GitHub logins (no spaces)")
+            self.vendor_logins[vid] = {v.lower() for v in logins}
+            for login in logins:
+                if login.lower() in self.vendor_by_login:
+                    raise ConfigError(f"config login '{login}' is listed for more than one vendor")
+                self.vendor_by_login[login.lower()] = vid
         for p, v in self.prefixes:
             for q, w in self.prefixes:
                 if (p, v) != (q, w) and q.startswith(p):
@@ -363,6 +375,14 @@ class Config:
             raise ConfigError("config 'max_file_mb' must be a positive number")
         self.max_file_mb = mb
         self.shared_account = _bool(full, "shared_account", "")
+        owner_logins = _str_list(full, "owner_logins")
+        if any(any(c.isspace() for c in v) for v in owner_logins):
+            raise ConfigError("config 'owner_logins' must be GitHub logins (no spaces)")
+        self.owner_logins = {v.lower() for v in owner_logins}
+        clash = sorted(self.owner_logins & set(self.vendor_by_login))
+        if clash:
+            raise ConfigError(f"config logins {clash} are listed both as owner and as a vendor; they must be separate accounts")
+        self.distinct_accounts = _bool(full, "distinct_accounts", "")
         self.audit_exempt = _str_list(full, "audit_exempt")
 
         # the Gate-Record trailer: only tiers the gate can merge have a valid record value
@@ -540,10 +560,12 @@ def timeline(pr):
     for cm in pr.get("comments") or []:
         if cm.get("isMinimized"):
             continue
-        items.append({"body": cm.get("body") or "", "when": cm.get("createdAt") or ""})
+        items.append({"body": cm.get("body") or "", "when": cm.get("createdAt") or "",
+                      "author": (cm.get("author") or {}).get("login") or ""})
     for rv in pr.get("reviews") or []:
         if rv.get("body"):
-            items.append({"body": rv["body"], "when": rv.get("submittedAt") or ""})
+            items.append({"body": rv["body"], "when": rv.get("submittedAt") or "",
+                          "author": (rv.get("author") or {}).get("login") or ""})
     items.sort(key=lambda i: i["when"])
     return items
 
@@ -579,10 +601,25 @@ def signal_problems(cfg, body, head):
     return problems
 
 
+def account_problem(cfg, signer, login):
+    """Why this GitHub account may not speak as this signer, or None. A signer with no configured logins is
+    trusted on its signature text alone (the shared-account case)."""
+    if signer.kind == "owner":
+        allowed, who = cfg.owner_logins, "the owner"
+    elif signer.vendor is not None:
+        allowed, who = cfg.vendor_logins.get(signer.vendor, set()), f"vendor {signer.vendor}"
+    else:
+        return None
+    if not allowed or (login or "").lower() in allowed:
+        return None
+    return f"is signed as {signer.name} but was posted by {login or 'an unknown account'}, which is not one of {who}'s configured logins"
+
+
 def read_signals(pr, cfg, head=""):
     """Parse the conversation into the latest verdict per signer, plan 'go' signers, hold state and the
     comments whose signal does not count although it looks like one."""
     latest, go_by, held, held_by, problems = {}, {}, False, None, []
+    verdict_login, go_login = {}, {}
     for it in timeline(pr):
         body = it["body"]
         name, rest = split_signature(cfg, body)
@@ -590,7 +627,8 @@ def read_signals(pr, cfg, head=""):
         h_name, h_rest = split_signature(cfg, strip_invisible(body))
         if HOLD.match(h_rest):
             held, held_by = True, h_name or "an unsigned comment"
-        elif UNHOLD.match(rest) and name and identify(cfg, name).kind == "owner":
+        elif UNHOLD.match(rest) and name and identify(cfg, name).kind == "owner" \
+                and account_problem(cfg, identify(cfg, name), it["author"]) is None:
             held, held_by = False, None
         for why in signal_problems(cfg, body, head):
             problems.append(f"comment by {name or h_name or 'an unsigned author'} at {it['when'] or '?'} {why}")
@@ -598,12 +636,21 @@ def read_signals(pr, cfg, head=""):
             continue
         signer = identify(cfg, name)
         m = cfg.verdict.match(rest)
+        if m or GO.match(rest):
+            bad = account_problem(cfg, signer, it["author"])
+            if bad:
+                problems.append(f"comment by {name} at {it['when'] or '?'} {bad}, so its signal counts for nothing")
+                continue
+        login = (it["author"] or "").lower()
         if m:
             latest[signer.key] = (signer, "approve" if m.group(1).lower() == "approved" else "reject",
                                   m.group(2).lower())
+            verdict_login[signer.key] = login
         if GO.match(rest):
             go_by[signer.key] = signer
-    return {"latest": latest, "go_by": go_by, "held": held, "held_by": held_by, "problems": problems}
+            go_login[signer.key] = login
+    return {"latest": latest, "go_by": go_by, "held": held, "held_by": held_by, "problems": problems,
+            "verdict_login": verdict_login, "go_login": go_login}
 
 
 # ---------------------------------------------------------------- fetching the pull request
@@ -821,8 +868,19 @@ def evaluate(pr, cfg):
         add("author", False, f"branch '{branch}' does not start with a vendor's branch prefix "
             f"({', '.join(p for p, _ in cfg.prefixes)}); the gate cannot tell which vendor wrote it")
 
-    def independent(signer):
+    author_login = ((pr.get("author") or {}).get("login") or "").lower()
+
+    def own_account(signer, logins):
+        """With distinct_accounts, a signal must come from a known GitHub account other than the PR author's."""
+        if not cfg.distinct_accounts:
+            return False
+        login = logins.get(signer.key, "")
+        return not login or login == author_login
+
+    def independent(signer, logins):
         if signer.vendor is None or a_vendor is None:
+            return False
+        if own_account(signer, logins):
             return False
         if signer.kind == "role" and cfg.approver_roles is not None and _key(signer.role) not in cfg.approver_roles:
             return False
@@ -831,7 +889,7 @@ def evaluate(pr, cfg):
         return not tier.cross_vendor and signer.key in cfg.same_vendor_reviewers
 
     if tier.plan_go:
-        goers = sorted(s.name for s in sig["go_by"].values() if independent(s) or s.kind == "owner")
+        goers = sorted(s.name for s in sig["go_by"].values() if independent(s, sig["go_login"]) or s.kind == "owner")
         add("plan", bool(goers), f"plan 'go' from {', '.join(goers)}" if goers else
             f"no plan 'go' from the other vendor's reviewer (or the owner: {owner_list}); "
             "the comment must start with the word go")
@@ -849,8 +907,9 @@ def evaluate(pr, cfg):
             ignored.append(f"{signer.name} approved an older commit")
         elif not signer.known:
             ignored.append(f"{signer.name} is not a known signer")
-        elif not independent(signer):
-            ignored.append(f"{signer.name} is not an independent reviewer for this branch at {tier.label}")
+        elif not independent(signer, sig["verdict_login"]):
+            ignored.append(f"{signer.name} is not an independent reviewer for this branch at {tier.label}"
+                           + ("; it was posted from the PR author's account or an unknown one" if own_account(signer, sig["verdict_login"]) else ""))
         else:
             approvers.append(signer.name)
     if tier.approvals or approvers or blockers:

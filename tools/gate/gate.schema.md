@@ -9,7 +9,7 @@ There are no hidden policy defaults: tiers, vendors, owner, protected paths and 
 | --- | --- | --- |
 | `schema_version` | `1` | The schema this file follows. |
 | `tiers` | list of tier objects (below) | Every tier a PR can carry. At least one. |
-| `vendors` | object: vendor id -> `{names, branch_prefixes}` | `names`: how the vendor is written after the dot in a new-format signature (`Independent Reviewer · <name>`). `branch_prefixes`: head-branch prefixes that mark a PR as authored by this vendor. Names are unique across vendors (case-insensitive); prefixes may not overlap (no prefix may start another vendor's prefix). |
+| `vendors` | object: vendor id -> `{names, branch_prefixes}` | `names`: how the vendor is written after the dot in a new-format signature (`Independent Reviewer · <name>`). `branch_prefixes`: head-branch prefixes that mark a PR as authored by this vendor. Names are unique across vendors (case-insensitive); prefixes may not overlap (no prefix may start another vendor's prefix). Optional `logins`: the GitHub logins that may sign as this vendor (case ignored, one login per vendor). When set, a verdict or `go` signed as this vendor counts only if its comment was posted by one of them; otherwise it counts for nothing and the `signals` rule fails. |
 | `owner_signers` | non-empty list of strings | The Program Owner's signatures, written alone: `**Program Owner:**`. The whole signature must equal one of these (case and spacing ignored). Owner lines: Tier approval, `unhold`, plan `go`. |
 | `protected_paths` | list of globs | A change to any of these (new or old name of a rename; case ignored) raises the PR to `protected_tier`. |
 | `protected_tier` | integer | The `level` of the tier protected paths raise to. |
@@ -52,7 +52,9 @@ Raise order: protected paths first (to `protected_tier` if lower), then `allowed
 | `magic` | PDF, PNG, JPEG, GIF, TIFF, GGUF | Content signatures: `[{"hex": "25504446 2d", "kind": "PDF"}]`. Spaces in `hex` are ignored. Replaces the default list. |
 | `secrets` | `sk-` keys, private key headers, AWS access keys, GitHub tokens | `[{"pattern": "<regex>", "label": "..."}]`. Matches are reported by label, never printed. Replaces the default list. |
 | `max_file_mb` | `5` | Larger files fail `scan`. |
-| `shared_account` | `true` | Adds the note that signatures cannot prove authorship on one shared account. |
+| `shared_account` | `true` | Adds the note that signatures cannot prove authorship on one shared account. Set `false` once `logins`, `owner_logins` and `distinct_accounts` are in use. |
+| `owner_logins` | `[]` | GitHub logins that may sign as the owner. When set, an owner `Approved`, `go` or `unhold` posted from any other account counts for nothing. A login may not also be a vendor login. |
+| `distinct_accounts` | `false` | When `true`, a `go` or an approval counts as independent only if it was posted from a known account other than the pull request author's. With one shared account this refuses everything, so turn it on only together with separate accounts. |
 | `audit_exempt` | `[]` | Full commit ids `audit` skips (for example the commit that adopted the gate). |
 
 ## Signatures and signals

@@ -23,7 +23,7 @@ Each comment starts with `**<Role> · <Vendor>:**`; the first words after it are
 - **The author's vendor merges** its own PRs; the vendor comes from the branch prefix (declared per vendor). An integration branch cannot be a PR head.
 - **The gate is the single merge path**: never the host's merge button, the host CLI's merge command, or a push to main. The gate merges only the head it checked and writes a record line into the merge commit; a CI workflow opens an issue for any commit on main without that line.
 - **One merge at a time** (R13): announce, merge, confirm, wait for main CI. Pull the checkout that runs the gate first, so it runs the current gate.
-- **Known limits**: the gate pins the head, not the base, so base and head are not checked atomically; on a shared account it cannot prove who wrote a comment. The owner's `hold`, the record line and the audit are the backstop; branch protection, where the plan allows it, is a second check.
+- **Known limits**: the gate pins the head, not the base, so base and head are not checked atomically; on a shared account it cannot prove who wrote a comment (the optional `logins`, `owner_logins` and `distinct_accounts` in `gate.json` close that, once separate accounts exist: `docs/vendor-accounts.md`). The owner's `hold`, the record line and the audit are the backstop; branch protection, where the plan allows it, is a second check.
 
 ## What a project's gate.json must declare
 1. Tier by path: the docs-only paths (Tier 1) and the protected paths (Tier 3).

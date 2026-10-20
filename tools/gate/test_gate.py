@@ -184,6 +184,113 @@ def try_merge(gh, merged_as=AUTHOR, c=None, **kw):
 
 # ================================================================ config schema
 
+def by(login, c):
+    """The same comment, posted from a given GitHub account."""
+    c = dict(c)
+    c["author"] = {"login": login}
+    return c
+
+
+class AccountTests(unittest.TestCase):
+    """Optional GitHub logins per vendor and for the owner, and distinct_accounts. With none configured the gate
+    trusts signature text on a shared account exactly as before (every test above)."""
+
+    OWNER_LOGIN = "pat-human"
+
+    def c(self, **over):
+        vendors = json.loads(json.dumps(RAW["vendors"]))
+        vendors["alpha"]["logins"] = ["alpha-bot"]
+        vendors["beta"]["logins"] = ["Beta-Bot"]
+        base = dict(vendors=vendors, owner_logins=[self.OWNER_LOGIN], distinct_accounts=True)
+        base.update(over)
+        return cfg(**base)
+
+    def p(self, **over):
+        base = dict(author={"login": "beta-bot"}, comments=[by("alpha-bot", go()), by("alpha-bot", approve())])
+        base.update(over)
+        return pr(**base)
+
+    def test_a_reviewer_on_its_own_account_passes(self):
+        ev = g.evaluate(self.p(), self.c())
+        self.assertTrue(ev["passed"], g.format_report(ev, 7))
+
+    def test_login_comparison_ignores_case(self):
+        ev = g.evaluate(self.p(comments=[by("ALPHA-BOT", go()), by("Alpha-Bot", approve())]), self.c())
+        self.assertTrue(ev["passed"], g.format_report(ev, 7))
+
+    def test_a_vendor_signature_from_the_wrong_login_counts_for_nothing(self):
+        ev = g.evaluate(self.p(comments=[by("beta-bot", go()), by("beta-bot", approve())]), self.c())
+        r = rules(ev)
+        self.assertFalse(r["review"])
+        self.assertFalse(r["plan"])
+        self.assertFalse(r["signals"])
+        self.assertIn("not one of vendor alpha's configured logins", msg(ev, "signals"))
+
+    def test_the_owner_line_from_an_agent_account_counts_for_nothing(self):
+        owner = comment(OWNER, f"Approved at `{HEAD}`", "2026-10-04T12:00:00Z")
+        p = self.p(labels=[{"name": "tier-3"}],
+                   comments=[by("alpha-bot", go()), by("alpha-bot", approve()), by("alpha-bot", owner)])
+        ev = g.evaluate(p, self.c())
+        self.assertFalse(rules(ev)["owner"])
+        self.assertFalse(rules(ev)["signals"])
+        self.assertIn("not one of the owner's configured logins", msg(ev, "signals"))
+
+    def test_the_owner_line_from_the_owner_login_counts(self):
+        owner = comment(OWNER, f"Approved at `{HEAD}`", "2026-10-04T12:00:00Z")
+        p = self.p(labels=[{"name": "tier-3"}],
+                   comments=[by("alpha-bot", go()), by("alpha-bot", approve()), by(self.OWNER_LOGIN, owner)])
+        ev = g.evaluate(p, self.c())
+        self.assertTrue(ev["passed"], g.format_report(ev, 7))
+
+    def test_unhold_only_counts_from_the_owner_login(self):
+        hold = by("alpha-bot", comment(REVIEW, "hold", "2026-10-04T11:00:00Z"))
+        unhold = comment(OWNER, "unhold", "2026-10-04T12:00:00Z")
+        base = [by("alpha-bot", go()), by("alpha-bot", approve()), hold]
+        self.assertFalse(rules(g.evaluate(self.p(comments=base + [by("alpha-bot", unhold)]), self.c()))["hold"])
+        self.assertTrue(rules(g.evaluate(self.p(comments=base + [by(self.OWNER_LOGIN, unhold)]), self.c()))["hold"])
+
+    def test_distinct_accounts_refuses_a_review_from_the_authors_own_account(self):
+        c = cfg(distinct_accounts=True)
+        same = g.evaluate(pr(author={"login": "me"}, comments=[by("me", go()), by("me", approve())]), c)
+        self.assertFalse(rules(same)["review"])
+        self.assertIn("PR author's account", msg(same, "review"))
+        other = g.evaluate(pr(author={"login": "me"}, comments=[by("you", go()), by("you", approve())]), c)
+        self.assertTrue(other["passed"], g.format_report(other, 7))
+
+    def test_distinct_accounts_refuses_a_plan_go_from_the_authors_own_account(self):
+        c = cfg(distinct_accounts=True)
+        ev = g.evaluate(pr(author={"login": "me"}, comments=[by("me", go()), by("you", approve())]), c)
+        self.assertFalse(rules(ev)["plan"])
+
+    def test_an_unknown_account_does_not_count_when_accounts_must_be_distinct(self):
+        c = cfg(distinct_accounts=True)
+        no_login = go()
+        no_login.pop("author")
+        ev = g.evaluate(pr(author={"login": "me"}, comments=[no_login, approve(), by("you", approve())]), c)
+        self.assertFalse(rules(ev)["plan"])
+
+    def test_a_shared_account_still_works_when_nothing_is_configured(self):
+        ev = g.evaluate(pr(author={"login": "me"}, comments=[by("me", go()), by("me", approve())]), CFG)
+        self.assertTrue(ev["passed"], g.format_report(ev, 7))
+
+    def test_config_refuses_bad_logins(self):
+        def bad(**over):
+            with self.assertRaises(g.ConfigError):
+                self.c(**over)
+        vendors = json.loads(json.dumps(RAW["vendors"]))
+        vendors["alpha"]["logins"] = "alpha-bot"
+        bad(vendors=vendors)
+        vendors["alpha"]["logins"] = ["has space"]
+        bad(vendors=vendors)
+        vendors["alpha"]["logins"] = ["same-login"]
+        vendors["beta"]["logins"] = ["Same-Login"]
+        bad(vendors=vendors)
+        vendors["beta"]["logins"] = ["beta-bot"]
+        bad(vendors=vendors, owner_logins=["same-login"])
+        bad(owner_logins="pat-human")
+        bad(distinct_accounts="yes")
+
+
 class ConfigSchemaTests(unittest.TestCase):
     def write(self, text, encoding="utf-8"):
         d = tempfile.mkdtemp()
