@@ -63,12 +63,40 @@ def tracked_files(root):
     return [p for p in out.decode("utf-8").split("\0") if p]
 
 
+class Unreadable(Exception):
+    """A tracked file is neither UTF-8 or UTF-16 text nor clearly binary."""
+
+
 def read_lines(root, rel):
+    """Lines of a tracked text file, or None for a binary one (NUL bytes). UTF-8, with or without a byte-order
+    mark, and UTF-16 with a byte-order mark (what Windows PowerShell writes) are text. Anything else that is
+    not clearly binary is an error, never silently skipped."""
     try:
-        with open(os.path.join(root, rel), encoding="utf-8") as stream:
-            return stream.read().splitlines()
-    except (OSError, UnicodeDecodeError):
+        with open(os.path.join(root, rel), "rb") as stream:
+            raw = stream.read()
+    except OSError as exc:
+        raise Unreadable(f"cannot be read: {exc}") from exc
+    if raw.startswith((b"\xff\xfe", b"\xfe\xff")):
+        try:
+            return raw.decode("utf-16").splitlines()
+        except UnicodeDecodeError as exc:
+            raise Unreadable("starts like UTF-16 but does not decode as UTF-16; convert it to UTF-8") from exc
+    if b"\x00" in raw[:8192]:
         return None
+    try:
+        return raw.decode("utf-8-sig").splitlines()
+    except UnicodeDecodeError as exc:
+        raise Unreadable("is not UTF-8 or UTF-16 text and has no NUL bytes, so it is not clearly binary; "
+                         "convert it to UTF-8") from exc
+
+
+def lines_of(root, rel, problems):
+    """The numbered lines of a tracked file; an unreadable file is reported as a problem, a binary one skipped."""
+    try:
+        return list(enumerate(read_lines(root, rel) or [], 1))
+    except Unreadable as exc:
+        problems.append(f"{rel}: {exc}")
+        return []
 
 
 def check_vendor_words(root, files, cfg):
@@ -80,7 +108,7 @@ def check_vendor_words(root, files, cfg):
     for rel in files:
         if not any(fnmatch.fnmatchcase(rel, g) for g in cfg.get("vendor_free_paths", [])):
             continue
-        for number, line in enumerate(read_lines(root, rel) or [], 1):
+        for number, line in lines_of(root, rel, problems):
             hit = pattern.search(line)
             if hit:
                 problems.append(f"{rel}:{number}: vendor name '{hit.group(1)}' outside vendors/")
@@ -93,7 +121,7 @@ def check_log_rows(root, files, cfg):
         if entry["path"] not in files:
             problems.append(f"{entry['path']}: log file is not tracked")
             continue
-        for number, line in enumerate(read_lines(root, entry["path"]) or [], 1):
+        for number, line in lines_of(root, entry["path"], problems):
             row = ROW.match(line)
             if row and row.group(1) >= entry.get("since", "0000-00-00") and len(line) > entry["max_chars"]:
                 problems.append(f"{entry['path']}:{number}: row is {len(line)} characters, limit {entry['max_chars']}; "
@@ -111,7 +139,7 @@ def check_derivable_numbers(root, files, cfg):
         if rel not in files:
             problems.append(f"{rel}: file is not tracked")
             continue
-        for number, line in enumerate(read_lines(root, rel) or [], 1):
+        for number, line in lines_of(root, rel, problems):
             for pattern in patterns:
                 hit = pattern.search(line)
                 if hit:
@@ -124,19 +152,26 @@ def check_name_sweep(root, files, cfg):
     if not spec:
         return []
     hashes = set()
-    lines = read_lines(root, spec["hash_file"])
+    try:
+        lines = read_lines(root, spec["hash_file"])
+    except Unreadable as exc:
+        return [f"{spec['hash_file']}: {exc}"]
     if lines is None:
         return [f"{spec['hash_file']}: cannot read the hash file"]
-    for line in lines:
+    for number, line in enumerate(lines, 1):
         token = line.split("#", 1)[0].strip().lower()
-        if token:
-            hashes.add(token)
+        if not token:
+            continue
+        if not re.fullmatch(r"[0-9a-f]{64}", token):
+            raise ConfigError(f"{spec['hash_file']}:{number}: not a 64-character hexadecimal SHA-256, so it "
+                              "could never match; fix or remove it")
+        hashes.add(token)
     exempt = set(spec.get("exempt_files", []))
     problems = []
     for rel in files:
         if rel in exempt or rel == spec["hash_file"]:
             continue
-        for number, line in enumerate(read_lines(root, rel) or [], 1):
+        for number, line in lines_of(root, rel, problems):
             if any(hashlib.sha256(w.lower().encode("utf-8")).hexdigest() in hashes for w in WORD.findall(line)):
                 problems.append(f"{rel}:{number}: contains a word from the name denylist")
     return problems

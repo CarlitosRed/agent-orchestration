@@ -131,9 +131,61 @@ class NameSweepTests(unittest.TestCase):
     def test_binary_file_is_ignored(self):
         r = self.repo({"ok.md": "clean\n"})
         with open(os.path.join(r.root, "blob.bin"), "wb") as stream:
-            stream.write(b"\xff\xfe\x00" + WORD.encode())
+            stream.write(b"\x89PNG\r\n\x1a\n\x00\x00" + WORD.encode())
         git(r.root, "add", "-A")
         self.assertEqual(r.check()[0], 0)
+
+
+class EncodingAndHashTests(unittest.TestCase):
+    def sweep_repo(self, files, hash_text=None):
+        files = dict(files)
+        files[".orchestration/sweep-hashes.txt"] = hash_text if hash_text is not None else f"{WORD_HASH}\n"
+        cfg = {"vendor_words": ["acme"], "vendor_free_paths": ["rules/*"],
+               "sweep": {"hash_file": ".orchestration/sweep-hashes.txt", "exempt_files": []}}
+        return Repo(self, files, cfg)
+
+    def test_utf16_with_a_byte_order_mark_is_still_checked(self):
+        r = self.sweep_repo({"ok.md": "clean\n"})
+        for rel, text in (("rules/r.md", "Acme\n"), ("notes.md", f"{WORD}\n")):
+            path = os.path.join(r.root, *rel.split("/"))
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path, "wb") as stream:
+                stream.write(b"\xff\xfe" + text.encode("utf-16-le"))
+        git(r.root, "add", "-A")
+        code, out = r.check()
+        self.assertEqual(code, 1)
+        self.assertIn("FAIL vendor-words: rules/r.md:1:", out)
+        self.assertIn("FAIL name-sweep: notes.md:1:", out)
+
+    def test_utf8_with_a_byte_order_mark_is_still_checked(self):
+        r = self.sweep_repo({"ok.md": "clean\n"})
+        with open(os.path.join(r.root, "bom.md"), "wb") as stream:
+            stream.write(b"\xef\xbb\xbf" + f"{WORD}\n".encode())
+        git(r.root, "add", "-A")
+        self.assertEqual(r.check()[0], 1)
+
+    def test_a_file_that_is_neither_text_nor_clearly_binary_is_reported(self):
+        r = self.sweep_repo({"ok.md": "clean\n"})
+        with open(os.path.join(r.root, "latin.md"), "wb") as stream:
+            stream.write(b"caf\xe9 " + WORD.encode())
+        git(r.root, "add", "-A")
+        code, out = r.check()
+        self.assertEqual(code, 1)
+        self.assertIn("latin.md: is not UTF-8 or UTF-16 text", out)
+
+    def test_a_truncated_hash_is_refused_and_not_printed(self):
+        with self.assertRaises(hygiene.ConfigError) as ctx:
+            self.sweep_repo({"a.md": f"{WORD}\n"}, hash_text=WORD_HASH[:-1] + "\n").check()
+        self.assertIn("sweep-hashes.txt:1", str(ctx.exception))
+        self.assertNotIn(WORD_HASH[:10], str(ctx.exception))
+
+    def test_a_non_hex_hash_is_refused(self):
+        with self.assertRaises(hygiene.ConfigError):
+            self.sweep_repo({"a.md": "x\n"}, hash_text="# note\n" + "z" * 64 + "\n").check()
+
+    def test_uppercase_hex_and_trailing_comments_are_accepted(self):
+        code, _ = self.sweep_repo({"a.md": "clean\n"}, hash_text=f"{WORD_HASH.upper()}  # a note\n").check()
+        self.assertEqual(code, 0)
 
 
 class ConfigTests(unittest.TestCase):
