@@ -41,4 +41,4 @@ Not measured this session.
 3. Commit the relay builder as a small tool (L16) and add the harness rule from section 7 to the leak log as a new row.
 
 ## FINAL UPDATE
-None - current as of the moment this was written.
+Superseded the same day by `handoff-framework-orchestrator-2026-10-20-2.md`, which you must read instead. (A name sort puts `-2026-10-20-2.md` before `-2026-10-20.md`, so "newest by name" picks this file; pick by git log date.)
