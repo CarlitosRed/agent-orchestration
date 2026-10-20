@@ -28,7 +28,7 @@ Each project lives on GitHub (private) with local copies, and runs on a pinned f
 | `ideas/` | ideas register and one note per source (pstack, advisor, caching, Codex failover, local-model clerk, dispatch preflight) | grows with each source |
 | `rules/` | the rules with the enforcer of each, and the leak classes | F1; most rules now have a real enforcer (F6) |
 | `templates/` | task card, builder, reviewer, review round, ready-for-review, vendor-as-subagent, a CI workflow | F1, kept current with F6's builds |
-| `tools/` | `gate`, `class-ledger`, `claims-ledger`, `usage-ledger`, `verify-manifest`, `blinded-eval`, `benchmark`, `dispatch-plan`, `hygiene` | F2-F6 plus the opt-in dispatch preflight and the hygiene checks; all offline, run by the `tests` workflow |
+| `tools/` | `gate`, `class-ledger`, `claims-ledger`, `usage-ledger`, `verify-manifest`, `blinded-eval`, `benchmark`, `dispatch-plan`, `hygiene`, `review-relay` | F2-F6 plus the opt-in dispatch preflight and the hygiene checks; all offline, run by the `tests` workflow |
 | `skills/` | model-agnostic SKILL.md files: verification (create/maintain/demo), `handoff`, `no-comments`, `onboard-project`, `retrofit-project` | F4-F6 |
 | `adapters/` | what a project must provide (`.orchestration/`: pin, gate config, desk/commands/roles, leaks, verify) | career-agent-hq onboarded (merged); advance-po-reader retrofitted, open for its own review (`advance-po-reader#51`) |
 | `vendors/` | per-vendor capability profile, commands and quirks | `codex.md` and `claude-code.md`; each file says what was actually tested |
