@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Repo hygiene checks: vendor names, log row length, derivable numbers, hashed name sweep.
+"""Repo hygiene checks: vendor names, log row length, derivable numbers, hashed name sweep, required text.
 
 Usage: hygiene.py check [--root DIR] [--config PATH]
 Exit 0: every check passed; 1: a violation; 2: bad config or not a git repo.
@@ -15,7 +15,8 @@ import re
 import subprocess
 import sys
 
-CONFIG_KEYS = {"vendor_words", "vendor_free_paths", "log_files", "no_derivable_numbers", "sweep"}
+CONFIG_KEYS = {"vendor_words", "vendor_free_paths", "log_files", "no_derivable_numbers", "sweep", "required_text"}
+REQUIRED_KEYS = {"text", "paths"}
 LOG_KEYS = {"path", "max_chars", "since"}
 DERIVABLE_KEYS = {"paths", "patterns"}
 SWEEP_KEYS = {"hash_file", "exempt_files"}
@@ -61,6 +62,13 @@ def load_config(path):
                 re.compile(pattern)
             except re.error as exc:
                 raise ConfigError(f"no_derivable_numbers.patterns: '{pattern}' is not a regular expression: {exc}") from exc
+    for entry in cfg.get("required_text", []):
+        only(entry, REQUIRED_KEYS, "required_text entry")
+        paths = entry.get("paths")
+        if not isinstance(entry.get("text"), str) or not entry["text"].strip() or "\n" in entry["text"]:
+            raise ConfigError("required_text entry needs a non-empty one-line string text")
+        if not isinstance(paths, list) or not paths or not all(isinstance(p, str) and p for p in paths):
+            raise ConfigError("required_text entry needs a non-empty list of file paths")
     if "sweep" in cfg:
         spec = cfg["sweep"]
         only(spec, SWEEP_KEYS, "sweep")
@@ -133,6 +141,21 @@ def check_vendor_words(root, files, cfg):
     return problems
 
 
+def check_required_text(root, files, cfg):
+    """Every listed file must hold the exact one-line text, so a rule that has to travel with every agent prompt
+    cannot be dropped from one template without CI saying which."""
+    problems = []
+    for entry in cfg.get("required_text", []):
+        for rel in entry["paths"]:
+            if rel not in files:
+                problems.append(f"{rel}: not tracked, so it cannot carry the required text")
+                continue
+            lines = [line for _, line in lines_of(root, rel, problems)]
+            if not any(entry["text"] in line for line in lines):
+                problems.append(f"{rel}: missing the required text '{entry['text'][:50]}...'")
+    return problems
+
+
 def check_log_rows(root, files, cfg):
     problems = []
     for entry in cfg.get("log_files", []):
@@ -196,7 +219,8 @@ def check_name_sweep(root, files, cfg):
 
 
 CHECKS = [("vendor-words", check_vendor_words), ("log-rows", check_log_rows),
-          ("derivable-numbers", check_derivable_numbers), ("name-sweep", check_name_sweep)]
+          ("derivable-numbers", check_derivable_numbers), ("name-sweep", check_name_sweep),
+          ("required-text", check_required_text)]
 
 
 def run(root, config_path, out=print):

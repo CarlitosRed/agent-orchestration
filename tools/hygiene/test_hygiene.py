@@ -136,6 +136,48 @@ class NameSweepTests(unittest.TestCase):
         self.assertEqual(r.check()[0], 0)
 
 
+class RequiredTextTests(unittest.TestCase):
+    CLAUSE = "Work silently: reply once with the result."
+
+    def cfg(self, paths=("AGENTS.md", "templates/a.md")):
+        return {"required_text": [{"text": self.CLAUSE, "paths": list(paths)}]}
+
+    def test_every_listed_file_carrying_the_clause_passes(self):
+        files = {"AGENTS.md": f"- {self.CLAUSE}\n", "templates/a.md": f"Role: x\n{self.CLAUSE}\nmore\n"}
+        code, out = Repo(self, files, self.cfg()).check()
+        self.assertEqual(code, 0)
+        self.assertIn("PASS required-text", out)
+
+    def test_a_file_that_lost_the_clause_fails_and_is_named(self):
+        files = {"AGENTS.md": f"- {self.CLAUSE}\n", "templates/a.md": "Role: x\n"}
+        code, out = Repo(self, files, self.cfg()).check()
+        self.assertEqual(code, 1)
+        self.assertIn("FAIL required-text: templates/a.md", out)
+        self.assertNotIn("AGENTS.md:", out)
+
+    def test_a_reworded_clause_fails(self):
+        files = {"AGENTS.md": "Work silently: reply once with the outcome.\n", "templates/a.md": f"{self.CLAUSE}\n"}
+        self.assertEqual(Repo(self, files, self.cfg()).check()[0], 1)
+
+    def test_a_listed_file_that_is_not_tracked_fails(self):
+        code, out = Repo(self, {"AGENTS.md": f"{self.CLAUSE}\n"}, self.cfg()).check()
+        self.assertEqual(code, 1)
+        self.assertIn("templates/a.md: not tracked", out)
+
+    def test_utf16_and_crlf_files_are_read(self):
+        r = Repo(self, {"AGENTS.md": f"{self.CLAUSE}\r\n"}, self.cfg(("AGENTS.md", "u16.md")))
+        with open(os.path.join(r.root, "u16.md"), "wb") as stream:
+            stream.write(b"\xff\xfe" + (self.CLAUSE + "\n").encode("utf-16-le"))
+        git(r.root, "add", "-A")
+        self.assertEqual(r.check()[0], 0)
+
+    def test_incomplete_entries_are_refused(self):
+        for entry in ({"text": "", "paths": ["a.md"]}, {"text": "x"}, {"paths": ["a.md"]},
+                      {"text": "x", "paths": []}, {"text": "x", "paths": [5]}, {"text": 5, "paths": ["a.md"]}):
+            with self.assertRaises(hygiene.ConfigError, msg=str(entry)):
+                Repo(self, {"a.md": "x\n"}, {"required_text": [entry]}).check()
+
+
 class EncodingAndHashTests(unittest.TestCase):
     def sweep_repo(self, files, hash_text=None):
         files = dict(files)
