@@ -51,3 +51,9 @@ Later on 2026-10-20 (read from the repo and run logs, not relayed):
 - The four old Codex worktrees were removed by the Program Owner. Still listed: the shared folder on `checkpoint-2026-10-19`, one extra Orchestrator worktree `workflow-templates`, and one under `advance-po-reader` (not ours).
 - Section 9 item 2 is done in the PR carrying this update: a probe under `-s read-only` and `-s workspace-write` ran shell commands (git ran; the file write was refused read-only and worked in workspace-write; `python` was not on Codex's PATH); `vendors/codex.md` now carries that dated status and leak row L26. A real build dispatch has still not been tried.
 - Remaining: the vendor accounts (Program Owner, when ready), then the tier-3 PR for L1 and L13; a hygiene check for broken doc references; shorten nine old `docs/decisions.md` rows; offering `v0.9.1` to the projects waits for the Program Owner.
+
+Still later on 2026-10-20 (read from the repo):
+- Main is `6e9d2da` before the PR carrying this update. Merged since: #83 (`vendors/codex.md` shell status, L26), #84 (gate test fake key body, L27), #85 (rule R29: work silently on a task, carried by `AGENTS.md` and seven prompt templates, checked by `hygiene.py` `required_text`). Newest tag is still `v0.9.1`; R29 is not in a tag, so a `v0.9.2` would carry it.
+- Two PRs appending to the end of `.orchestration/leaks.md` at once conflicted and voided an approval (L28): keep one open PR editing that file at a time.
+- The Program Owner's standing rule (also in his global instructions): no narration while working, one final result, ask only if truly blocked. Approval lines remain his to type; stop and ask for them.
+- Section 9 item 3 now reads: the vendor accounts (his), then a hygiene check for broken doc references, shortening nine old `docs/decisions.md` rows, and offering the projects the next tag by their own PRs when he says so.
