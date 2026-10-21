@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Repo hygiene checks: vendor names, log row length, derivable numbers, hashed name sweep, required text.
+"""Repo hygiene checks: vendor names, log row length, derivable numbers, hashed name sweep, required text, doc references.
 
 Usage: hygiene.py check [--root DIR] [--config PATH]
 Exit 0: every check passed; 1: a violation; 2: bad config or not a git repo.
@@ -15,13 +15,17 @@ import re
 import subprocess
 import sys
 
-CONFIG_KEYS = {"vendor_words", "vendor_free_paths", "log_files", "no_derivable_numbers", "sweep", "required_text"}
+CONFIG_KEYS = {"vendor_words", "vendor_free_paths", "log_files", "no_derivable_numbers", "sweep", "required_text", "doc_refs"}
 REQUIRED_KEYS = {"text", "paths"}
 LOG_KEYS = {"path", "max_chars", "since"}
 DERIVABLE_KEYS = {"paths", "patterns"}
 SWEEP_KEYS = {"hash_file", "exempt_files"}
+DOC_REF_KEYS = {"paths", "ignore"}
 ROW = re.compile(r"\|\s*(\d{4}-\d{2}-\d{2})\s*\|")
 WORD = re.compile(r"[A-Za-z]+")
+QUOTED = re.compile(r"`([^`\s]+)`")
+NOT_A_PATH = re.compile(r"[<>*${}()|\\[\]=]")
+LINE_SUFFIX = re.compile(r"(:\d+(-\d+)?(,\d+)*|#.*)$")
 
 
 class ConfigError(Exception):
@@ -69,6 +73,14 @@ def load_config(path):
             raise ConfigError("required_text entry needs a non-empty one-line string text")
         if not isinstance(paths, list) or not paths or not all(isinstance(p, str) and p for p in paths):
             raise ConfigError("required_text entry needs a non-empty list of file paths")
+    if "doc_refs" in cfg:
+        spec = cfg["doc_refs"]
+        only(spec, DOC_REF_KEYS, "doc_refs")
+        for name in ("paths", "ignore"):
+            values = spec.get(name, [] if name == "ignore" else None)
+            if not isinstance(values, list) or not all(isinstance(v, str) and v for v in values)                     or (name == "paths" and not values):
+                raise ConfigError(f"doc_refs.{name}: expected a list of strings"
+                                  + (" (non-empty; leave the whole key out to disable the check)" if name == "paths" else ""))
     if "sweep" in cfg:
         spec = cfg["sweep"]
         only(spec, SWEEP_KEYS, "sweep")
@@ -218,9 +230,39 @@ def check_name_sweep(root, files, cfg):
     return problems
 
 
+def check_doc_refs(root, files, cfg):
+    """A backticked path that starts at a top-level folder or file of this repo must name a tracked file or
+    folder. Only opted-in files are read; `ignore` lists paths that are deliberate (a file in a project, a
+    file not written yet). Placeholders, URLs and anything with shell or glob characters are not paths."""
+    spec = cfg.get("doc_refs")
+    if not spec:
+        return []
+    known = set(files)
+    folders = set()
+    for rel in files:
+        parts = rel.split("/")
+        folders.update("/".join(parts[:i]) for i in range(1, len(parts)))
+    tops = {rel.split("/")[0] for rel in files}
+    problems = []
+    for rel in files:
+        if not any(fnmatch.fnmatchcase(rel, g) for g in spec["paths"]):
+            continue
+        for number, line in lines_of(root, rel, problems):
+            for quoted in QUOTED.findall(line):
+                ref = LINE_SUFFIX.sub("", quoted.rstrip(".,;:)"))
+                if NOT_A_PATH.search(ref) or "/" not in ref or ref.startswith(("http", "~", "/")):
+                    continue
+                if ref.split("/")[0] not in tops or any(fnmatch.fnmatchcase(ref, g) for g in spec.get("ignore", [])):
+                    continue
+                if ref.rstrip("/") not in known and ref.rstrip("/") not in folders:
+                    problems.append(f"{rel}:{number}: `{ref}` is not a file or folder in this repo; fix the "
+                                    "path, or add it to doc_refs.ignore if it is deliberate")
+    return problems
+
+
 CHECKS = [("vendor-words", check_vendor_words), ("log-rows", check_log_rows),
           ("derivable-numbers", check_derivable_numbers), ("name-sweep", check_name_sweep),
-          ("required-text", check_required_text)]
+          ("required-text", check_required_text), ("doc-refs", check_doc_refs)]
 
 
 def run(root, config_path, out=print):

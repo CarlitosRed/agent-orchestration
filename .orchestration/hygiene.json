@@ -45,6 +45,17 @@
       "\\b\\d+ entries\\b"
     ]
   },
+  "doc_refs": {
+    "paths": ["README.md", "STATE.md", "docs/*", "rules/*", "vendors/*", "skills/*", "adapters/*", "templates/*"],
+    "ignore": [
+      ".orchestration/verify/*",
+      ".orchestration/framework.pin",
+      "tools/class-ledger/README.md",
+      "vendors/gemini.md",
+      "vendors/claude.md",
+      "vendors/CLAUDE.md"
+    ]
+  },
   "sweep": {
     "hash_file": ".orchestration/sweep-hashes.txt",
     "exempt_files": [
