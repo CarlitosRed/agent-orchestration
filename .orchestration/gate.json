@@ -12,10 +12,13 @@
      "owner_approval": true, "body_headings": true}
   ],
   "vendors": {
-    "claude": {"names": ["Claude"], "branch_prefixes": ["claude/"]},
-    "codex": {"names": ["Codex"], "branch_prefixes": ["codex/"]}
+    "claude": {"names": ["Claude"], "branch_prefixes": ["claude/"], "logins": ["carlitosred-claude"]},
+    "codex": {"names": ["Codex"], "branch_prefixes": ["codex/"], "logins": ["carlitosred-codex"]}
   },
   "owner_signers": ["Program Owner"],
+  "owner_logins": ["CarlitosRed"],
+  "distinct_accounts": true,
+  "shared_account": false,
   "protected_paths": [
     "AGENTS.md",
     "rules/*",
