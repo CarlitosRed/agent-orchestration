@@ -1,0 +1,10 @@
+# Adapter spec: dated observations
+Moved out of `adapters/README.md` on 2026-10-20 so the spec holds requirements and this file holds history. Each item is true as of its date, not now; read current state from the repos (`STATE.md`).
+
+- **2026-10-15, live audit of workflows.** The `gate-audit` workflow was missing everywhere except `advance-po-reader` (whose project-specific version the template generalizes). `agent-orchestration` itself had no `.github/workflows/` at all, and `career-agent-hq`'s `gate.json` was, by its own retrofit commit's admission, "a documentation-only restatement... there is no existing enforcing tool to translate here." Since then this repo has both workflows plus the `tests` check (`.orchestration/leaks.md` L2).
+- **2026-10-15, first `retrofit-project` run.** A file in `.orchestration/` may be a pointer: `desk.md` and `leaks.md` were already real, actively written files in a sibling private ops repo (`project-notes`). The spec therefore does not assume one repo per project.
+- **2026-10-15, documents-only exemption.** `career-agent-hq`'s retrofit (`career-agent-hq#1`) found that a project with no app to launch has no `verify/` to generate, and pointed `commands.md` at its own `evidence/E-###` entries before the exemption was written down (`agent-orchestration#36`). Status then: specified, nothing to prove, since there is no tool to run.
+- **2026-10-15, project status.** `advance-po-reader` had both workflows (project-specific versions) and was retrofitted in `advance-po-reader#51`; `career-agent-hq` had neither workflow yet.
+- **2026-10-15, verification skill.** Status "PROPOSED until the first project generates and proves one" (the `verify/` folder shape).
+- **2026-10-15, single-vendor mode.** The extra owner-approval requirement on every tier that needs any approval is the Program Owner's own call of that date, a compensating control for having no cross-vendor check (`docs/vendor-count-modes.md`).
+- **Handoff.** Status when written: designed, not yet exercised on a real cross-vendor handoff; it has been used since (`skills/handoff`, issue #52).
