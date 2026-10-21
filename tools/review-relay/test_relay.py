@@ -62,6 +62,33 @@ class BuildTests(unittest.TestCase):
         self.assertFalse(self.build().startswith("﻿"))
 
 
+class RoleValidationTests(unittest.TestCase):
+    def test_a_role_in_the_set_is_accepted(self):
+        relay.check_role("Independent Reviewer", roles={"independent reviewer"})
+
+    def test_a_role_not_in_the_set_is_refused(self):
+        with self.assertRaises(relay.RelayError):
+            relay.check_role("Reviewer", roles={"independent reviewer"})
+
+    def test_matching_is_case_and_whitespace_insensitive(self):
+        relay.check_role("  independent   REVIEWER ", roles={"independent reviewer"})
+
+    def test_no_config_found_skips_the_check(self):
+        with mock.patch.object(relay, "known_roles", return_value=None):
+            relay.check_role("anything at all")  # nothing to check against: not refused
+
+    def test_known_roles_returns_none_without_a_gate_config(self):
+        with mock.patch.object(relay.gate, "default_config_path", return_value="Z:/does/not/exist/gate.json"):
+            self.assertIsNone(relay.known_roles())
+
+    def test_known_roles_reads_this_projects_own_config(self):
+        # relay.py is itself part of this repo, so its own .orchestration/gate.json is on disk to find.
+        roles = relay.known_roles()
+        self.assertIsNotNone(roles)
+        self.assertIn("independent reviewer", roles)
+        self.assertNotIn("reviewer", roles)
+
+
 class ReadTextTests(unittest.TestCase):
     def test_encodings(self):
         with tempfile.TemporaryDirectory() as tmp:
