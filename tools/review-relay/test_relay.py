@@ -128,5 +128,66 @@ class PostTests(unittest.TestCase):
         gh.assert_not_called()
 
 
+class AsAccountTests(unittest.TestCase):
+    URL = "https://example.test/pull/7#issuecomment-2"
+
+    def runner(self, token="tok-codex", token_owner="carlitosred-codex", pr_author="carlitosred-claude",
+               comment_author="carlitosred-codex"):
+        calls = []
+        seen = {}
+
+        def run(args, stdin=None, env=None):
+            calls.append((args, (env or {}).get("GH_TOKEN"), (env or {}).get("GH_CONFIG_DIR")))
+            if args[:2] == ["auth", "token"]:
+                return token + "\n"
+            if args[:2] == ["api", "user"]:
+                return token_owner + "\n"
+            if args[:2] == ["pr", "view"] and "author" in args:
+                return pr_author + "\n"
+            if args[:2] == ["pr", "comment"]:
+                seen["body"] = Path(args[args.index("--body-file") + 1]).read_text(encoding="utf-8")
+                return self.URL + "\n"
+            return json.dumps({"comments": [{"url": self.URL, "body": seen["body"], "author": {"login": comment_author}}]})
+
+        return run, calls
+
+    def body(self):
+        return relay.build("Independent Reviewer", "Codex", "approved", SHA, "ok", "me")
+
+    def test_posts_with_the_vendor_token_and_reads_the_author_back(self):
+        run, calls = self.runner()
+        gh = relay.gh_as("carlitosred-codex", "C:/cfg", runner=run)
+        self.assertEqual(relay.post(7, self.body(), gh=gh, expect_author="carlitosred-codex"), self.URL)
+        self.assertEqual(calls[0][2], "C:/cfg")
+        self.assertTrue(all(token == "tok-codex" for _, token, _ in calls[1:]))
+
+    def test_a_token_that_belongs_to_another_account_is_refused(self):
+        run, _ = self.runner(token_owner="carlitosred-claude")
+        with self.assertRaises(relay.RelayError):
+            relay.gh_as("carlitosred-codex", runner=run)
+
+    def test_a_missing_token_is_refused(self):
+        run, _ = self.runner(token="")
+        with self.assertRaises(relay.RelayError):
+            relay.gh_as("carlitosred-codex", runner=run)
+
+    def test_a_comment_by_the_wrong_account_is_caught(self):
+        run, _ = self.runner(comment_author="carlitosred-claude")
+        gh = relay.gh_as("carlitosred-codex", runner=run)
+        with self.assertRaises(relay.RelayError):
+            relay.post(7, self.body(), gh=gh, expect_author="carlitosred-codex")
+
+    def test_the_pull_request_author_cannot_review_its_own_pr(self):
+        run, calls = self.runner(pr_author="carlitosred-codex")
+        with tempfile.TemporaryDirectory() as tmp:
+            review = write(tmp, "r.txt", b"ok\n")
+            with mock.patch.object(relay, "run_gh", run):
+                with mock.patch.object(relay, "gh_as", lambda a, c=None: lambda args, stdin=None: run(args, stdin)):
+                    code = relay.main(["post", "7", "--vendor", "Codex", "--verdict", "approved", "--sha", SHA,
+                                       "--review-file", review, "--relayer", "me", "--as-account", "carlitosred-codex"])
+        self.assertEqual(code, 1)
+        self.assertFalse(any(args[:2] == ["pr", "comment"] for args, _, _ in calls))
+
+
 if __name__ == "__main__":
     unittest.main()
