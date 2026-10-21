@@ -21,6 +21,11 @@ import sys
 import tempfile
 from pathlib import Path
 
+_GATE_DIR = str(Path(__file__).resolve().parent.parent / "gate")
+if _GATE_DIR not in sys.path:
+    sys.path.insert(0, _GATE_DIR)
+import gate  # tools/gate/gate.py: the single source of truth for which --role names gate.py will ever recognize
+
 SHA = re.compile(r"^[0-9a-f]{40}$")
 VERDICTS = {"approved": "Approved at", "not-approved": "Not approved at"}
 
@@ -42,6 +47,29 @@ def read_text(path):
 
 def quote(text):
     return "\n".join(("> " + line).rstrip() if line.strip() else ">" for line in text.strip("\n").split("\n"))
+
+
+def known_roles():
+    """The signer roles the current project's own gate config recognizes, or None if no config is found (nothing
+    to check --role against). A role posted outside this set is text gate.py will flag as 'not a known signer'
+    and ignore — the review would never count, with no error at post time to say so."""
+    path = gate.default_config_path()
+    if not os.path.isfile(path):
+        return None
+    try:
+        return set(gate.load_config(path).role_by_key)
+    except gate.GateError:
+        return None
+
+
+def check_role(role, roles=None):
+    """Refuse a --role gate.py would not recognize as a signer. roles=None looks up the project's own gate
+    config; pass an explicit set (of gate._key-normalized names) to check against something else, e.g. in tests."""
+    if roles is None:
+        roles = known_roles()
+    if roles is not None and gate._key(role) not in roles:
+        raise RelayError(f"role {role!r} is not a signer role in this project's gate config "
+                          "(.orchestration/gate.json): gate.py would post it but never count it as a review")
 
 
 def build(role, vendor, verdict, sha, review_text, relayer, note_text=""):
@@ -137,6 +165,7 @@ def main(argv=None):
                             help="gh config folder that holds the --as-account login (default: $RELAY_TOKEN_CONFIG_DIR)")
     args = ap.parse_args(argv)
     try:
+        check_role(args.role)
         note = read_text(args.note_file) if args.note_file else ""
         body = build(args.role, args.vendor, args.verdict, args.sha, read_text(args.review_file), args.relayer, note)
         if args.cmd == "build":
