@@ -1,5 +1,5 @@
 # One GitHub account per vendor (what turns a signature into proof)
-Today every agent and the Program Owner post from one GitHub account, so `**Independent Reviewer · Codex:**` is text anyone can type (leaks L1 and L13 in `.orchestration/leaks.md`). The gate can check accounts as well as signatures once they exist. Nothing here changes behaviour until `gate.json` opts in.
+Before 2026-10-21 every agent and the Program Owner posted from one GitHub account, so `**Independent Reviewer · Codex:**` was text anyone could type (leaks L1 and L13 in `.orchestration/leaks.md`). Since #87 this repo's `gate.json` opts in: the gate checks the account that posted each signed comment. Other projects stay on the old behaviour until their own `gate.json` opts in.
 
 ## What the Program Owner does (agents never create accounts or enter credentials)
 1. Create one GitHub account for each vendor that works on this repo (for example one for Claude sessions, one for Codex sessions). Check GitHub's current terms for automation accounts first.
@@ -20,7 +20,20 @@ Today every agent and the Program Owner post from one GitHub account, so `**Inde
 - An owner `Approved`, `go` or `unhold` posted from an account that is not in `owner_logins`: same.
 - With `distinct_accounts`, a `go` or approval posted from the pull request author's own account, or from an unknown one: not independent. This is what stops an author approving its own work, including a conflict fix it pushed.
 
+## How it runs day to day (no switching, no extra terminals)
+Which account posts is set per command, not per terminal.
+| Who | Account | How the account is chosen |
+| --- | --- | --- |
+| Claude session | the Claude account | the session's own `gh` config folder (`GH_CONFIG_DIR`) holds only this login |
+| Codex review, relayed | the Codex account | the Claude session posts the review with `GH_TOKEN` set to the Codex token for that one command, so GitHub shows the Codex login as author |
+| Owner lines (`go`, `Approved at <sha>`) | the owner account | typed by the Program Owner in their own terminal or the web page; an agent never writes them (R23) |
+
+- The Codex token comes from the Program Owner's default `gh` config: `gh auth token --user <codex account>` with `GH_CONFIG_DIR` pointing at that default folder. It is read into the environment of one command and never written to a file or the repo.
+- Merge: `python tools/gate/gate.py merge <PR> --as "Release Manager · <Vendor>"`, run from a worktree on `origin/main` (detached). Allow that exact command in the session's permission settings (`Bash(python tools/gate/gate.py merge *)`), or each merge needs an explicit "merge" in chat. The gate, not the permission, is what demands the owner lines.
+- Check the signed-in account before posting owner lines: `gh api user --jq .login` must print the owner login. A gate failure "tier-N needs the owner's comment" with the comment missing on GitHub usually means the comment went out under another account or never posted; list the comments with `gh pr view <PR> --json comments --jq '.comments[]|[.author.login,.body[0:60]]|@tsv'`.
+- Proven on #87 (config) and #88 (first relayed review under the Codex token, owner line from the owner account, merged by the Claude account).
+
 ## What it does not fix
 - It proves which account wrote a comment, not which model sat behind that account. A vendor's account is only as trustworthy as whoever holds its token.
+- The Claude session can read the Codex token on this desk (same machine, same user). Separation here is accountability in the record, not a security boundary between the two vendors.
 - `gate.py merge` still runs with the operator's own `gh` login.
-- Until the config opts in, nothing changes and the shared-account note stays in every gate report.
