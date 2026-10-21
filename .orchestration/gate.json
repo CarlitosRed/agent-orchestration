@@ -4,7 +4,7 @@
   "repo": "",
   "base": "main",
   "tiers": [
-    {"label": "tier-1", "level": 1, "name": "docs and notes", "owner_approval": true,
+    {"label": "tier-1", "level": 1, "name": "docs and notes", "owner_approval": false,
      "allowed_paths": ["docs/*", "ideas/*", "audits/*", "README.md", "STATE.md", "RESUME-framework-orchestrator.md", ".orchestration/leaks.md"]},
     {"label": "tier-2", "level": 2, "name": "tools, skills, templates, vendors", "approvals": 1, "plan_go": true,
      "owner_approval": true, "body_headings": true},
