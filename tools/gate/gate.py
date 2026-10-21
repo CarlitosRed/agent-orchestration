@@ -615,13 +615,32 @@ def account_problem(cfg, signer, login):
     return f"is signed as {signer.name} but was posted by {login or 'an unknown account'}, which is not one of {who}'s configured logins"
 
 
+def owner_hint(sig, head):
+    """What the gate saw when the owner's line is missing, so the fix is a lookup and not a guess."""
+    seen = sig.get("owner_seen") or []
+    if not seen:
+        authors = sig.get("authors") or []
+        return ("; no comment signed as the owner was found"
+                + (f" (comment authors on this PR: {', '.join(authors)})" if authors else " (no comments at all)"))
+    last = seen[-1]
+    if not last["counted"]:
+        return (f"; an owner line was posted by {last['login'] or 'an unknown account'}, which is not one of the "
+                "owner's configured logins (see the signals line)")
+    if not head.startswith(last["sha"]):
+        return f"; the latest owner line is for {last['sha'][:8]} but the head is {head[:8]}"
+    return ""
+
+
 def read_signals(pr, cfg, head=""):
     """Parse the conversation into the latest verdict per signer, plan 'go' signers, hold state and the
     comments whose signal does not count although it looks like one."""
     latest, go_by, held, held_by, problems = {}, {}, False, None, []
     verdict_login, go_login = {}, {}
+    owner_seen, authors = [], []
     for it in timeline(pr):
         body = it["body"]
+        if it["author"] and it["author"] not in authors:
+            authors.append(it["author"])
         name, rest = split_signature(cfg, body)
         # A hold is a brake: it counts even behind an invisible character or without a signature.
         h_name, h_rest = split_signature(cfg, strip_invisible(body))
@@ -638,6 +657,8 @@ def read_signals(pr, cfg, head=""):
         m = cfg.verdict.match(rest)
         if m or GO.match(rest):
             bad = account_problem(cfg, signer, it["author"])
+            if m and signer.kind == "owner":
+                owner_seen.append({"login": it["author"], "sha": m.group(2).lower(), "counted": not bad})
             if bad:
                 problems.append(f"comment by {name} at {it['when'] or '?'} {bad}, so its signal counts for nothing")
                 continue
@@ -650,7 +671,7 @@ def read_signals(pr, cfg, head=""):
             go_by[signer.key] = signer
             go_login[signer.key] = login
     return {"latest": latest, "go_by": go_by, "held": held, "held_by": held_by, "problems": problems,
-            "verdict_login": verdict_login, "go_login": go_login}
+            "verdict_login": verdict_login, "go_login": go_login, "owner_seen": owner_seen, "authors": authors}
 
 
 # ---------------------------------------------------------------- fetching the pull request
@@ -920,7 +941,7 @@ def evaluate(pr, cfg):
     if tier.owner_approval:
         add("owner", owner_ok, "the owner approved at the head commit" if owner_ok else
             f"{tier.label} needs the owner's comment: **{cfg.owner_signers[0]}:** Approved at <full commit id>, "
-            "matching the current head")
+            "matching the current head" + owner_hint(sig, head))
 
     return _finish(results, notes, head, tier, approvers, owner_ok, a_vendor, branch, pr, cfg)
 

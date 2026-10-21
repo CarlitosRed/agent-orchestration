@@ -291,6 +291,46 @@ class AccountTests(unittest.TestCase):
         bad(distinct_accounts="yes")
 
 
+class OwnerHintTests(unittest.TestCase):
+    """When the owner's line is missing, the failed rule says what the gate saw instead of only what it needs."""
+
+    OWNER_LOGIN = "pat-human"
+
+    def c(self):
+        vendors = json.loads(json.dumps(RAW["vendors"]))
+        vendors["alpha"]["logins"] = ["alpha-bot"]
+        vendors["beta"]["logins"] = ["beta-bot"]
+        return cfg(vendors=vendors, owner_logins=[self.OWNER_LOGIN], distinct_accounts=True)
+
+    def owner_msg(self, *extra):
+        p = pr(author={"login": "beta-bot"}, labels=[{"name": "tier-3"}],
+               comments=[by("alpha-bot", go()), by("alpha-bot", approve()), *extra])
+        ev = g.evaluate(p, self.c())
+        self.assertFalse(rules(ev)["owner"])
+        return msg(ev, "owner")
+
+    def test_no_owner_comment_lists_who_commented(self):
+        text = self.owner_msg()
+        self.assertIn("no comment signed as the owner was found", text)
+        self.assertIn("alpha-bot", text)
+
+    def test_an_owner_line_for_an_older_commit_names_both_commits(self):
+        old = "1" * 40
+        text = self.owner_msg(by(self.OWNER_LOGIN, comment(OWNER, f"Approved at `{old}`", "2026-10-04T12:00:00Z")))
+        self.assertIn(f"latest owner line is for {old[:8]} but the head is {HEAD[:8]}", text)
+
+    def test_an_owner_line_from_the_wrong_account_names_that_account(self):
+        text = self.owner_msg(by("alpha-bot", comment(OWNER, f"Approved at `{HEAD}`", "2026-10-04T12:00:00Z")))
+        self.assertIn("posted by alpha-bot, which is not one of the owner's configured logins", text)
+
+    def test_a_passing_owner_line_adds_no_hint(self):
+        p = pr(author={"login": "beta-bot"}, labels=[{"name": "tier-3"}],
+               comments=[by("alpha-bot", go()), by("alpha-bot", approve()),
+                         by(self.OWNER_LOGIN, comment(OWNER, f"Approved at `{HEAD}`", "2026-10-04T12:00:00Z"))])
+        ev = g.evaluate(p, self.c())
+        self.assertEqual(msg(ev, "owner"), "the owner approved at the head commit")
+
+
 class ConfigSchemaTests(unittest.TestCase):
     def write(self, text, encoding="utf-8"):
         d = tempfile.mkdtemp()
