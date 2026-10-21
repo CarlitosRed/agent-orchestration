@@ -15,7 +15,9 @@ import re
 import subprocess
 import sys
 
-CONFIG_KEYS = {"vendor_words", "vendor_free_paths", "log_files", "no_derivable_numbers", "sweep", "required_text", "doc_refs"}
+CONFIG_KEYS = {"vendor_words", "vendor_free_paths", "log_files", "no_derivable_numbers", "sweep", "required_text",
+               "doc_refs", "no_claude_md"}
+CLAUDE_MD_NAMES = ("CLAUDE.md", "CLAUDE.local.md")
 REQUIRED_KEYS = {"text", "paths"}
 LOG_KEYS = {"path", "max_chars", "since"}
 DERIVABLE_KEYS = {"paths", "patterns"}
@@ -81,6 +83,8 @@ def load_config(path):
             if not isinstance(values, list) or not all(isinstance(v, str) and v for v in values)                     or (name == "paths" and not values):
                 raise ConfigError(f"doc_refs.{name}: expected a list of strings"
                                   + (" (non-empty; leave the whole key out to disable the check)" if name == "paths" else ""))
+    if "no_claude_md" in cfg and type(cfg["no_claude_md"]) is not bool:
+        raise ConfigError("no_claude_md: must be true or false")
     if "sweep" in cfg:
         spec = cfg["sweep"]
         only(spec, SWEEP_KEYS, "sweep")
@@ -260,9 +264,27 @@ def check_doc_refs(root, files, cfg):
     return problems
 
 
+def check_no_claude_md(root, files, cfg):
+    """A project CLAUDE.md or CLAUDE.local.md silently overrides AGENTS.md for Claude Code sessions (Claude Code
+    reads CLAUDE.md if present and only falls back to AGENTS.md when none exists), which breaks this repo's
+    model-agnostic design without any error or warning. vendors/ is exempt: a desk-facts file there (matching
+    vendors/codex.md) is not a project-root instructions file Claude Code would read as such."""
+    if not cfg.get("no_claude_md"):
+        return []
+    problems = []
+    for rel in files:
+        if fnmatch.fnmatchcase(rel, "vendors/*"):
+            continue
+        if os.path.basename(rel) in CLAUDE_MD_NAMES:
+            problems.append(f"{rel}: a project CLAUDE.md overrides AGENTS.md in Claude Code and breaks this "
+                            "repo's model-agnostic design; remove it, or move vendor-specific notes to vendors/")
+    return problems
+
+
 CHECKS = [("vendor-words", check_vendor_words), ("log-rows", check_log_rows),
           ("derivable-numbers", check_derivable_numbers), ("name-sweep", check_name_sweep),
-          ("required-text", check_required_text), ("doc-refs", check_doc_refs)]
+          ("required-text", check_required_text), ("doc-refs", check_doc_refs),
+          ("no-claude-md", check_no_claude_md)]
 
 
 def run(root, config_path, out=print):

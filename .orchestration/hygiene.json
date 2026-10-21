@@ -1,5 +1,6 @@
 {
   "_about": "Config for tools/hygiene/hygiene.py. Changing this file is a protected-path change. exempt_files freezes the dated historical records that still hold the denylisted word; a NEW file is never exempt.",
+  "no_claude_md": true,
   "required_text": [
     {
       "text": "Work silently on a task: do not narrate commands, failures or retries; fix your own errors; reply once with the final result (what was built and where it is). Stop to ask only if truly blocked, meaning only the Program Owner can unblock it.",

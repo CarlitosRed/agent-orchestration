@@ -265,6 +265,34 @@ class DocRefTests(unittest.TestCase):
                 r.check()
 
 
+class NoClaudeMdTests(unittest.TestCase):
+    CFG = {"no_claude_md": True}
+
+    def test_a_root_claude_md_fails(self):
+        code, out = Repo(self, {"CLAUDE.md": "notes\n"}, self.CFG).check()
+        self.assertEqual(code, 1)
+        self.assertIn("FAIL no-claude-md: CLAUDE.md:", out)
+
+    def test_a_nested_claude_local_md_fails(self):
+        code, out = Repo(self, {"skills/x/CLAUDE.local.md": "notes\n"}, self.CFG).check()
+        self.assertEqual(code, 1)
+        self.assertIn("FAIL no-claude-md: skills/x/CLAUDE.local.md:", out)
+
+    def test_a_vendors_claude_md_is_allowed(self):
+        code, out = Repo(self, {"vendors/CLAUDE.md": "desk facts\n"}, self.CFG).check()
+        self.assertEqual(code, 0)
+        self.assertIn("PASS no-claude-md", out)
+
+    def test_disabled_by_default_even_with_a_claude_md_present(self):
+        code, _ = Repo(self, {"CLAUDE.md": "notes\n"}, {}).check()
+        self.assertEqual(code, 0)
+
+    def test_a_non_bool_value_is_refused(self):
+        r = Repo(self, {"a.md": "x\n"}, {"no_claude_md": "yes"})
+        with self.assertRaises(hygiene.ConfigError):
+            r.check()
+
+
 class ConfigTests(unittest.TestCase):
     def test_unknown_config_field_is_refused(self):
         r = Repo(self, {"a.md": "x\n"}, {"vendor_word": ["typo"]})
