@@ -31,3 +31,8 @@ Newest by date; it supersedes `handoff-framework-orchestrator-2026-10-20-2.md` a
 - Files with backslash escapes go through the Write or Edit tool, not a shell heredoc (L18; hit again today in a test file).
 - A gate "needs the owner's comment" failure now says what it saw (#93); if it still says nothing useful, list the PR's comments with their authors first.
 - Usage: not measured this session.
+
+## FINAL UPDATE (checkpoint at the Program Owner's request, later on 2026-10-21)
+- Main is `a7d8c68` plus this PR. Merged since the sections above: #101 (gate merge account check), #102 (this handoff). The remote branch `codex/relay-whitespace-note-test` is deleted. Open issues: #97, #98, #99 (the `v0.9.2` offers); open PRs: only the one carrying this update.
+- Career HQ (`career-agent-hq`, private; this account cannot read it): its `master` has no `.orchestration/` folder, and a one-commit retrofit branch pinned at `v0.3.0` was never merged (read from the local checkout only, not the remote). The Program Owner was given a paste-ready prompt for a session rooted in that repo: pin `v0.9.2`, add the R29 line to its `AGENTS.md`, keep the gate documents-only, no vendor accounts and no CI workflows (both recorded as deliberate choices), one PR, not merged by the session. Whether he has run it is not known.
+- Next action unchanged: watch #97 to #99; answer by comment; close each when its PR lands or it declines.
