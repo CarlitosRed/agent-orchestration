@@ -17,7 +17,7 @@ import sys
 
 CONFIG_KEYS = {"vendor_words", "vendor_free_paths", "log_files", "no_derivable_numbers", "sweep", "required_text",
                "doc_refs", "no_claude_md"}
-CLAUDE_MD_NAMES = ("CLAUDE.md", "CLAUDE.local.md")
+CLAUDE_MD_NAMES = {"claude.md", "claude.local.md"}
 REQUIRED_KEYS = {"text", "paths"}
 LOG_KEYS = {"path", "max_chars", "since"}
 DERIVABLE_KEYS = {"paths", "patterns"}
@@ -267,17 +267,19 @@ def check_doc_refs(root, files, cfg):
 def check_no_claude_md(root, files, cfg):
     """A project CLAUDE.md or CLAUDE.local.md silently overrides AGENTS.md for Claude Code sessions (Claude Code
     reads CLAUDE.md if present and only falls back to AGENTS.md when none exists), which breaks this repo's
-    model-agnostic design without any error or warning. vendors/ is exempt: a desk-facts file there (matching
-    vendors/codex.md) is not a project-root instructions file Claude Code would read as such."""
+    model-agnostic design without any error or warning. Matched case-insensitively and everywhere, including
+    vendors/: on a case-insensitive filesystem (Windows, default macOS) `claude.md` IS `CLAUDE.md`, and a
+    Claude Code session whose cwd is anywhere under a directory holding one auto-loads it as instructions -
+    vendors/README.md already documents this and names the vendor profile `claude-code.md` for exactly this
+    reason, which this check now enforces instead of leaving it as prose alone."""
     if not cfg.get("no_claude_md"):
         return []
     problems = []
     for rel in files:
-        if fnmatch.fnmatchcase(rel, "vendors/*"):
-            continue
-        if os.path.basename(rel) in CLAUDE_MD_NAMES:
+        if os.path.basename(rel).lower() in CLAUDE_MD_NAMES:
             problems.append(f"{rel}: a project CLAUDE.md overrides AGENTS.md in Claude Code and breaks this "
-                            "repo's model-agnostic design; remove it, or move vendor-specific notes to vendors/")
+                            "repo's model-agnostic design; remove it, or rename vendor-specific notes to "
+                            "vendors/claude-code.md")
     return problems
 
 

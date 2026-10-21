@@ -278,10 +278,21 @@ class NoClaudeMdTests(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertIn("FAIL no-claude-md: skills/x/CLAUDE.local.md:", out)
 
-    def test_a_vendors_claude_md_is_allowed(self):
+    def test_a_vendors_claude_md_also_fails(self):
         code, out = Repo(self, {"vendors/CLAUDE.md": "desk facts\n"}, self.CFG).check()
+        self.assertEqual(code, 1)
+        self.assertIn("FAIL no-claude-md: vendors/CLAUDE.md:", out)
+
+    def test_a_vendors_claude_code_md_is_allowed(self):
+        code, out = Repo(self, {"vendors/claude-code.md": "desk facts\n"}, self.CFG).check()
         self.assertEqual(code, 0)
         self.assertIn("PASS no-claude-md", out)
+
+    def test_lowercase_and_mixed_case_variants_fail(self):
+        for rel in ("claude.md", "Claude.MD", "claude.local.md", "CLAUDE.Local.md"):
+            code, out = Repo(self, {rel: "notes\n"}, self.CFG).check()
+            self.assertEqual(code, 1, rel)
+            self.assertIn(f"FAIL no-claude-md: {rel}:", out, rel)
 
     def test_disabled_by_default_even_with_a_claude_md_present(self):
         code, _ = Repo(self, {"CLAUDE.md": "notes\n"}, {}).check()
