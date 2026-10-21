@@ -132,8 +132,9 @@ DROP = object()
 class FakeGH:
     """api_out replaces what the file-list call prints; `after` overrides fields in the second look at the PR.
     A value of DROP removes the field."""
-    def __init__(self, pull, api_out=None, after=None):
+    def __init__(self, pull, api_out=None, after=None, login=""):
         self.pull, self.calls, self.api_out, self.after = pull, [], api_out, after
+        self.login = login
         self.views = 0
 
     def __call__(self, args):
@@ -149,6 +150,8 @@ class FakeGH:
             return json.dumps(self.pull)
         if args[:2] == ["repo", "view"]:
             return "example-org/recipe-box\n"
+        if args[:2] == ["api", "user"]:
+            return self.login + "\n"
         if args[0] == "api":
             if self.api_out is not None:
                 return self.api_out
@@ -1583,6 +1586,54 @@ class RepoNameTests(unittest.TestCase):
 
 
 # ================================================================ merge pinning and the Gate-Record trailer
+
+class MergeAccountTests(unittest.TestCase):
+    """With logins configured, the account running the merge must be one the --as name may use."""
+
+    def c(self):
+        vendors = json.loads(json.dumps(RAW["vendors"]))
+        vendors["alpha"]["logins"] = ["alpha-bot"]
+        vendors["beta"]["logins"] = ["beta-bot"]
+        return cfg(vendors=vendors, owner_logins=["pat-human"], distinct_accounts=True)
+
+    def p(self):
+        return pr(author={"login": "beta-bot"}, comments=[by("alpha-bot", go()), by("alpha-bot", approve())])
+
+    def merge(self, login, merged_as=AUTHOR):
+        gh = FakeGH(self.p(), login=login)
+        return try_merge(gh, merged_as=merged_as, c=self.c()), gh
+
+    def test_the_vendors_own_account_merges(self):
+        (code, out), gh = self.merge("beta-bot")
+        self.assertEqual(code, 0, out)
+        self.assertEqual(len(gh.merged()), 1)
+
+    def test_login_comparison_ignores_case(self):
+        (code, _), _ = self.merge("Beta-Bot")
+        self.assertEqual(code, 0)
+
+    def test_another_vendors_account_cannot_merge_under_this_name(self):
+        (code, _), gh = self.merge("alpha-bot")
+        self.assertEqual(code, 2)
+        self.assertEqual(gh.merged(), [])
+
+    def test_an_unknown_account_cannot_merge(self):
+        (code, _), gh = self.merge("")
+        self.assertEqual(code, 2)
+        self.assertEqual(gh.merged(), [])
+
+    def test_the_message_names_the_account_that_is_signed_in(self):
+        gh = FakeGH(self.p(), login="alpha-bot")
+        with self.assertRaises(g.GateError) as ctx:
+            g.cmd_merge(gh, self.c(), 7, AUTHOR, out=lambda _: None)
+        self.assertIn("gh is signed in as alpha-bot", str(ctx.exception))
+        self.assertIn("beta-bot", str(ctx.exception))
+
+    def test_no_logins_configured_means_no_account_check(self):
+        gh = FakeGH(pr(), login="anyone")
+        self.assertEqual(try_merge(gh)[0], 0)
+        self.assertNotIn(["api", "user", "--jq", ".login"], gh.calls)
+
 
 class MergeTests(unittest.TestCase):
     def run_merge(self, gh, merged_as=AUTHOR, c=None, **kw):
