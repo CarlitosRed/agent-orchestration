@@ -14,8 +14,9 @@ Confirmed on the Program Owner's desk, 2026-10-14 (Windows, `@openai/codex` npm 
 
 ## Non-interactive build dispatch
 ```
-codex exec [PROMPT] -C <working dir> -s <read-only|workspace-write|danger-full-access> --output-last-message <file> --json --skip-git-repo-check
+codex exec [PROMPT] -C <working dir> -s <read-only|workspace-write|danger-full-access> --output-last-message <file> --json --skip-git-repo-check < /dev/null
 ```
+Close stdin (`< /dev/null`, or `< NUL` in cmd) when launching from a tool shell: with a prompt argument and an open stdin pipe it waits for input until the timeout (2026-10-21).
 - `-s workspace-write` scoped to the task's own worktree is the default for a Build Engineer task; never `danger-full-access` from an automated dispatch.
 - `--json` streams JSONL events; the final `turn.completed` event carries real per-call usage: `{input_tokens, cached_input_tokens, output_tokens, reasoning_output_tokens}`. This is a real data source for R14 (usage-ceiling tracking) - not wired into a ledger yet, but no longer just advice-shaped; the numbers exist and are cheap to capture (append one line per dispatch).
 - `--output-last-message <file>` is the simplest way to capture the agent's final reply without parsing the full JSONL stream.
@@ -54,7 +55,15 @@ Direct shell command execution fails 100% of the time (5/5 attempts across this 
 
 Ruled out, in order, each a real attempt not a guess: Microsoft Defender exclusions (path + 5 named processes + Controlled Folder Access, added and verified present - no change). Reinstalling the CLI (`npm install -g @openai/codex` - no change). The `code_mode_only` feature flag, hoping to force the same code-execution path that incidentally worked around this for a file-write task - no change, Codex still attempted the native shell path and failed the same way.
 
-**Any task needing an actual shell command (tests, git, a build step, a package manager) will hit this wall with no reliable workaround**, until OpenAI ships a fix or the execution-only mode requested in #51006. A pure file-edit task may still complete if Codex happens to route it through an MCP tool instead (as the file-write smoke test did) - that is incidental agent behavior, not something to depend on. **Until a real build dispatch has been tried and succeeded on this desk, do not rely on Codex for a coding task (the 2026-10-20 status above is a probe, not a build); re-run `codex doctor` after any Codex update and look for `sandbox provisioning: failed` before trying.**
+**Any task needing an actual shell command (tests, git, a build step, a package manager) will hit this wall with no reliable workaround**, until OpenAI ships a fix or the execution-only mode requested in #51006. A pure file-edit task may still complete if Codex happens to route it through an MCP tool instead (as the file-write smoke test did) - that is incidental agent behavior, not something to depend on. **A real build dispatch was tried once on 2026-10-21 (section above): it wrote a correct small change but could not run the tests. Treat Codex as able to edit files under `workspace-write`, with the Orchestrator running the tests; re-run `codex doctor` after any Codex update and look for `sandbox provisioning: failed` before trying.**
+
+## Build dispatch, tried once on 2026-10-21 (codex-cli 0.163.0, desktop-app binary, `-s workspace-write`)
+One small real task in a throwaway worktree of `origin/main`: add one unit test to `tools/review-relay/test_relay.py`, change nothing else, run the tests, reply in one line. Read by the Orchestrator from the JSONL log and by running the result:
+- **It built the right thing.** The diff was one test, 5 lines, no other file; the Orchestrator ran the suite (15 tests) and it passed. One run is not a track record.
+- **It could not run the tests.** Codex's shell ran `git` and file reads, but a full path to the Python interpreter was "not recognized" inside the sandbox (as on 2026-10-20, `python` was not on its PATH). It said so in its reply instead of claiming a pass. A build dispatch therefore needs the Orchestrator (or CI) to run the tests; do not accept a build whose reply claims tests Codex could not run.
+- **The command hangs unless stdin is closed.** `codex exec "<prompt>" ...` printed `Reading additional input from stdin...` and waited until the 540-second timeout when launched from a tool shell. Add `< /dev/null` (Git Bash) or `< NUL` (cmd). The second run, with stdin closed, finished in one pass.
+- **Cost, from the final `turn.completed` event:** 132,265 input tokens (116,352 cached), 841 output tokens, 56 reasoning tokens.
+- **Authorship is a gate matter.** A `codex/` branch makes Codex the author, so its PR must be opened by the Codex account; a PR opened from the Claude account on a `codex/` branch would have its Claude review rejected as "not independent" (`distinct_accounts`). Not tried; this probe's change was discarded, not merged.
 
 ## Not yet confirmed
 - Whether `codex review`'s output can feed this framework's finding format (`docs/convergence-loop.md`'s finding record) directly: four reviews on 2026-10-19 all returned plain prose, so a parsing step (or a human mapping, as now) is still needed.
