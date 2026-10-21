@@ -53,6 +53,11 @@ class BuildTests(unittest.TestCase):
         body = self.build(note_text="Orchestrator's note: fixed.")
         self.assertTrue(body.rstrip().endswith("Orchestrator's note: fixed."))
 
+    def test_whitespace_only_note_adds_nothing(self):
+        body = self.build(note_text=" \t\n\r\n  ")
+        self.assertEqual(body, self.build())
+        self.assertTrue(body.endswith("> - [P2] real finding\n"))
+
     def test_no_bom_in_body(self):
         self.assertFalse(self.build().startswith("﻿"))
 
