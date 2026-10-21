@@ -230,6 +230,41 @@ class EncodingAndHashTests(unittest.TestCase):
         self.assertEqual(code, 0)
 
 
+class DocRefTests(unittest.TestCase):
+    CFG = {"doc_refs": {"paths": ["docs/*"], "ignore": ["later/*"]}}
+    FILES = {"tools/x/run.py": "x\n", "docs/a.md": "ok\n"}
+
+    def check(self, line, cfg=None):
+        return Repo(self, {**self.FILES, "docs/a.md": line + "\n"}, cfg or self.CFG).check()
+
+    def test_a_missing_file_fails_with_file_and_line(self):
+        code, out = self.check("see `tools/x/gone.py`")
+        self.assertEqual(code, 1)
+        self.assertIn("FAIL doc-refs: docs/a.md:1: `tools/x/gone.py`", out)
+
+    def test_a_real_file_a_folder_and_a_line_suffix_pass(self):
+        for ref in ("tools/x/run.py", "tools/x/", "tools/x", "tools/x/run.py:12-14", "tools/x/run.py#top"):
+            self.assertEqual(self.check(f"see `{ref}`")[0], 0, ref)
+
+    def test_placeholders_urls_globs_and_unknown_roots_are_not_paths(self):
+        for ref in ("tools/<name>/run.py", "tools/*/run.py", "https://example.com/a", "other/place.md", "$HOME/tools/q", "run.py"):
+            self.assertEqual(self.check(f"see `{ref}`")[0], 0, ref)
+
+    def test_ignore_lists_a_deliberate_reference(self):
+        cfg = {"doc_refs": {"paths": ["docs/*"], "ignore": ["tools/x/later.py"]}}
+        self.assertEqual(self.check("see `tools/x/later.py`", cfg)[0], 0)
+
+    def test_files_outside_paths_are_not_read(self):
+        files = {**self.FILES, "notes/n.md": "see `tools/x/gone.py`\n"}
+        self.assertEqual(Repo(self, files, self.CFG).check()[0], 0)
+
+    def test_a_bad_doc_refs_config_is_refused(self):
+        for bad in ({}, {"paths": []}, {"paths": "docs/*"}, {"paths": ["a"], "ignore": "b"}, {"paths": ["a"], "x": 1}):
+            r = Repo(self, {"a.md": "x\n"}, {"doc_refs": bad})
+            with self.assertRaises(hygiene.ConfigError):
+                r.check()
+
+
 class ConfigTests(unittest.TestCase):
     def test_unknown_config_field_is_refused(self):
         r = Repo(self, {"a.md": "x\n"}, {"vendor_word": ["typo"]})
