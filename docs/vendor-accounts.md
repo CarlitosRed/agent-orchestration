@@ -36,4 +36,4 @@ Which account posts is set per command, not per terminal.
 ## What it does not fix
 - It proves which account wrote a comment, not which model sat behind that account. A vendor's account is only as trustworthy as whoever holds its token.
 - The Claude session can read the Codex token on this desk (same machine, same user). Separation here is accountability in the record, not a security boundary between the two vendors.
-- `gate.py merge` still runs with the operator's own `gh` login.
+- `gate.py merge` runs with the operator's `gh` login. With `logins` configured it now refuses unless that login belongs to the `--as` name, so the merge record names the account that really merged. A PR from a `codex/` branch is merged as `Release Manager · Codex`, which needs the Codex account (for example `GH_TOKEN` set for that one command), not the Claude session's own login.

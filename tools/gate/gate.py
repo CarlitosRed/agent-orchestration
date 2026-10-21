@@ -1006,12 +1006,31 @@ def validate_merger(cfg, merged_as):
     return signer
 
 
+def check_merge_account(gh, cfg, signer, merged_as):
+    """With logins configured, the account that runs the merge must be one the --as name may use, so the
+    Gate-Record names the account that really merged. Without logins (shared account) nothing is checked."""
+    if signer.kind == "owner":
+        allowed, who = cfg.owner_logins, "the owner"
+    elif signer.vendor is not None:
+        allowed, who = cfg.vendor_logins.get(signer.vendor, set()), f"vendor {signer.vendor}"
+    else:
+        return
+    if not allowed:
+        return
+    login = gh(["api", "user", "--jq", ".login"]).strip()
+    if login.lower() not in allowed:
+        raise GateError(f"'{merged_as.strip()}' must merge from one of {who}'s configured logins "
+                        f"({', '.join(sorted(allowed))}); gh is signed in as {login or 'an unknown account'}. "
+                        "Switch the account for this command (for example GH_TOKEN) and run it again")
+
+
 def cmd_merge(gh, cfg, number, merged_as, dry_run=False, out=print):
     signer = validate_merger(cfg, merged_as)
     ev = evaluate(fetch_pr(gh, cfg, number), cfg)
     out(format_report(ev, number))
     if not ev["passed"]:
         return 1
+    check_merge_account(gh, cfg, signer, merged_as)
     if signer.kind != "owner":
         if signer.vendor != ev["author_vendor"]:
             raise GateError(f"the author's vendor merges: this PR is on a {ev['author_vendor']} branch "
