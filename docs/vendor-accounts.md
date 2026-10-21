@@ -25,10 +25,10 @@ Which account posts is set per command, not per terminal.
 | Who | Account | How the account is chosen |
 | --- | --- | --- |
 | Claude session | the Claude account | the session's own `gh` config folder (`GH_CONFIG_DIR`) holds only this login |
-| Codex review, relayed | the Codex account | the Claude session posts the review with `GH_TOKEN` set to the Codex token for that one command, so GitHub shows the Codex login as author |
+| Codex review, relayed | the Codex account | the Claude session runs `python tools/review-relay/relay.py post <PR> ... --as-account <codex account>`; GitHub then shows the Codex login as author |
 | Owner lines (`go`, `Approved at <sha>`) | the owner account | typed by the Program Owner in their own terminal or the web page; an agent never writes them (R23) |
 
-- The Codex token comes from the Program Owner's default `gh` config: `gh auth token --user <codex account>` with `GH_CONFIG_DIR` pointing at that default folder. It is read into the environment of one command and never written to a file or the repo.
+- The relay reads the Codex token with `gh auth token --user <codex account>` from the gh config folder named by `--token-config-dir` (or env `RELAY_TOKEN_CONFIG_DIR`) when the login is not in the session's own folder, and keeps it in the environment of that run only, never in a file or the repo. It refuses a token that belongs to another login, a pull request authored by that same login, and a posted comment whose author is not that login (#92).
 - Merge: `python tools/gate/gate.py merge <PR> --as "Release Manager · <Vendor>"`, run from a worktree on `origin/main` (detached). Allow that exact command in the session's permission settings (`Bash(python tools/gate/gate.py merge *)`), or each merge needs an explicit "merge" in chat. The gate, not the permission, is what demands the owner lines.
 - Check the signed-in account before posting owner lines: `gh api user --jq .login` must print the owner login. A gate failure "tier-N needs the owner's comment" with the comment missing on GitHub usually means the comment went out under another account or never posted; list the comments with `gh pr view <PR> --json comments --jq '.comments[]|[.author.login,.body[0:60]]|@tsv'`.
 - Proven on #87 (config) and #88 (first relayed review under the Codex token, owner line from the owner account, merged by the Claude account).
