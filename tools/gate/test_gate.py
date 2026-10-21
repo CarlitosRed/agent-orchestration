@@ -1921,7 +1921,7 @@ class ScanTests(unittest.TestCase):
         self.assertEqual(code, 1, out)
 
 
-FAKE_KEY = b"-----BEGIN OPENSSH " b"PRIVATE KEY-----\nabc\n"
+FAKE_KEY = b"-----BEGIN OPENSSH " b"PRIVATE KEY-----\nKEYBODY-NEVER-PRINTED\n"
 
 
 def add_then_remove_history(d, git):
@@ -1953,7 +1953,7 @@ class HistoryScanTests(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertIn("k.txt", out)
         self.assertIn(b[:7], out)
-        self.assertNotIn("abc", out)
+        self.assertNotIn("KEYBODY-NEVER-PRINTED", out)
 
     def test_range_before_the_bad_commit_is_clean(self):
         d, git = git_repo(self)
