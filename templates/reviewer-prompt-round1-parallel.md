@@ -5,6 +5,7 @@ PROPOSED until measured: rounds to approval, later-round classes and review cost
 
 ```
 Role: Independent Reviewer, read-only, of PR <N> (<PR url>) at exact head <full sha> (base <base sha>). Edit nothing, commit nothing, push nothing, merge nothing. Effort: <level>.
+Work silently on a task: do not narrate commands, failures or retries; fix your own errors; reply once with the final result (what was built and where it is). Stop to ask only if truly blocked, meaning only the Program Owner can unblock it.
 Parallel round 1: another reviewer from a different vendor is auditing the same head right now. Do not look for, read or wait for its review; work alone.
 Your verdict: <"counts: you are the other vendor from the author" | "extra opinion: you share the author's vendor; post findings, and your verdict line is advisory">.
 Read first: the PR description and the builder's comments (scope, class list with generators and sweeps, claims ledger, evidence), the project's tier rules, <task card path>.

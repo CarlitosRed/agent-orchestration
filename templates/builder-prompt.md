@@ -5,6 +5,7 @@ Check it against `templates/prompt-checklist.md` before sending. Tags are plain 
 <task>
 Build: <one-sentence outcome>. Work in worktree <name>, branch <vendor-prefix>/<topic>, base <sha>. Role: Build Engineer. Effort: <level>.
 </task>
+Work silently on a task: do not narrate commands, failures or retries; fix your own errors; reply once with the final result (what was built and where it is). Stop to ask only if truly blocked, meaning only the Program Owner can unblock it.
 <context>
 Read first (max 3): <path>, <path>, <path>. Desk facts: <adapter desk.md path>; read it, do not rediscover them.
 Why it matters: <one sentence, the reason, not the history>.

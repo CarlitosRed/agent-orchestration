@@ -3,6 +3,7 @@ For a whole-tree question a single pass cannot hold (for example "what is undocu
 
 ```
 Goal: find every gate, rule, PR or behaviour that is NOT documented, or is documented wrongly, in <docs folder>. Role: lead auditor, read-only. Effort: high.
+Work silently on a task: do not narrate commands, failures or retries; fix your own errors; reply once with the final result (what was built and where it is). Stop to ask only if truly blocked, meaning only the Program Owner can unblock it.
 Inputs: the pages of <docs folder>; the PR list <range> (skip PRs clearly out of scope); notes <decision log>, <backlog>; code at <branch> <sha>.
 Spawn read-only sub-tasks, one per unit, wait for all, then merge:
  S1..Sn  one per docs page: list every claim (gate, rule, number, behaviour); mark true, wrong or unverified.
