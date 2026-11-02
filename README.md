@@ -11,7 +11,7 @@ agent-orchestration (this repo, reusable core)
    review loop that converges - verification skill - vendor adapters - ideas register
         |                                          |
         v pinned version                           v pinned version
-advance-po-reader (project)                 career-agent-hq (project)
+a private document-AI project              career-agent-hq (project)
    adapter: tiers, tests, desk facts           adapter: its tiers, tests, run steps
 ```
 Each project lives on GitHub (private) with local copies, and runs on a pinned framework version. Projects never edit the framework.
@@ -30,7 +30,7 @@ Each project lives on GitHub (private) with local copies, and runs on a pinned f
 | `templates/` | task card, builder, reviewer, review round, ready-for-review, vendor-as-subagent, a CI workflow | F1, kept current with F6's builds |
 | `tools/` | `gate`, `class-ledger`, `claims-ledger`, `usage-ledger`, `verify-manifest`, `blinded-eval`, `benchmark`, `dispatch-plan`, `hygiene`, `review-relay` | F2-F6 plus the opt-in dispatch preflight and the hygiene checks; all offline, run by the `tests` workflow |
 | `skills/` | model-agnostic SKILL.md files: verification (create/maintain/demo), `handoff`, `no-comments`, `onboard-project`, `retrofit-project` | F4-F6 |
-| `adapters/` | what a project must provide (`.orchestration/`: pin, gate config, desk/commands/roles, leaks, verify) | career-agent-hq onboarded (merged); advance-po-reader retrofitted, open for its own review (`advance-po-reader#51`) |
+| `adapters/` | what a project must provide (`.orchestration/`: pin, gate config, desk/commands/roles, leaks, verify) | career-agent-hq onboarded (merged); a private document-AI project retrofitted, open for its own review |
 | `vendors/` | per-vendor capability profile, commands and quirks | `codex.md` and `claude-code.md`; each file says what was actually tested |
 
 ## Milestones
