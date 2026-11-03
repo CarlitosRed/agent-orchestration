@@ -15,7 +15,7 @@ Main `66202db`. Newest tag `v0.9.0` on `d5955b4`. Open PRs: none. Handoff inbox 
 - Nothing else is blocked.
 
 ## 5. What it did not check
-- Whether `po-reader-orchestrator` or the SmarterForge session is alive; whether any project upgraded past `v0.7.0`. No project has adopted the #59 clone fallback (L14) or v0.9.0.
+- Whether `document-ai-orchestrator` or the SmarterForge session is alive; whether any project upgraded past `v0.7.0`. No project has adopted the #59 clone fallback (L14) or v0.9.0.
 - The audit workflow's issue creation (needs a real bypass of `main`); `distinct_accounts` against a real PR with separate accounts.
 - Review depth: Codex's rounds 2 and 3 on small PRs were one short paragraph each, and its later texts did not name the earlier findings.
 - Token and usage numbers: not measured this session.

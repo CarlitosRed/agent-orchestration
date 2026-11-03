@@ -15,10 +15,10 @@ Newest by date; it supersedes `handoff-framework-orchestrator-2026-10-20-2.md` a
 #87 gate opt-in (tier 3) · #88 L1/L13 fixed · #89 and #95 account how-to · #90 nine decisions rows shortened · #91 `doc-refs` hygiene check · #92 relay `--as-account` · #93 gate owner-line failure says what it saw · #94 first real Codex build run, L29. Codex reviewed #87, #88, #91, #92, #93 and #94 and found no defects in any; it did not exercise real posting or accounts itself (it said so). Later the same day: #100 (Codex-authored test, first full run of that direction) and #101 (merge account check, tier 3).
 
 ## Not done, and why
-- Adopting `v0.9.2`: offered on 2026-10-21 by issues #97 (po-reader, pin v0.6.0), #98 (career-hq, v0.3.0) and #99 (smarter-forge, v0.7.0); each project answers by its own PR. Nobody has replied yet (not re-checked after posting).
+- Adopting `v0.9.2`: offered on 2026-10-21 by issues #97 (document-AI project, pin v0.6.0), #98 (career-hq, v0.3.0) and #99 (smarter-forge, v0.7.0); each project answers by its own PR. Nobody has replied yet (not re-checked after posting).
 - The Codex-authored direction is proven once (#100: Codex builds, Codex account opens the PR, Claude reviews, owner lines, merge). The merge ran from the Claude login, which exposed that `--as` was only a label; #101 now refuses a merge unless the signed-in account belongs to the `--as` name. A Codex-branch merge therefore needs the Codex token for that command; that refusal has not been seen live yet.
 - Codex cannot run Python inside its `workspace-write` sandbox; the Orchestrator or CI runs the tests of any Codex build.
-- Worktrees not ours or not removed: the shared folder on `checkpoint-2026-10-19`, `workflow-templates`, `framework-orchestrator-662617`, and one under `advance-po-reader`. Re-run `git worktree list` before trusting this (L6).
+- Worktrees not ours or not removed: the shared folder on `checkpoint-2026-10-19`, `workflow-templates`, `framework-orchestrator-662617`, and one under the private project. Re-run `git worktree list` before trusting this (L6).
 - Merged remote branches are not deleted.
 
 ## Next three actions

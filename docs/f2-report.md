@@ -41,7 +41,7 @@ Owner: `**<owner signer>:**`, the whole signature equal to one of `owner_signers
 
 Detection is unambiguous because only the first part (before the middle dot U+00B7) decides the format, and `roles`, `legacy_signers` and `owner_signers` must be disjoint, checked when the config loads (a config that breaks this is refused). A vendor name in first position (`**Alpha · PR review:**`) is unknown, never legacy. Both formats count side by side in one project (tested), so an existing project's open PRs keep working while new comments use roles. Comparison ignores case and repeated spaces.
 
-## PO-specific rules turned into configuration
+## Project-specific rules turned into configuration
 | Source (hardcoded or project default) | Generic |
 | --- | --- |
 | `TIER_LABELS` tier-1..tier-4, trailer `tier=[123]` | `tiers[]` with `label`, `level`, `record`, `mergeable` |
@@ -55,7 +55,7 @@ Detection is unambiguous because only the first part (before the middle dot U+00
 | `evidence_headings` | `body_headings` |
 | hold label `hold` | `hold_label` |
 | VERDICT accepts 7 to 40 hex | `verdict_sha_min_length`, default 40 (docs say full sha); set 7 to match the source |
-| config next to the script, PO defaults if missing | `<repo top>/.orchestration/gate.json`; missing file is an error |
+| config next to the script, the first project's defaults if missing | `<repo top>/.orchestration/gate.json`; missing file is an error |
 New from the docs, not in the source gate: `forbidden_head_prefixes` (tiers doc: an integration branch cannot be a PR head), optional `approver_roles` and `merger_roles` (roles doc: the role drives who may do what; off by default, so source behaviour holds).
 
 ## Deliberately not ported, or changed
@@ -84,4 +84,4 @@ Unchanged on purpose: the whole file-list proof (pagination, count proof, before
 4. Default `verdict_sha_min_length` 40 is stricter than the source's 7. A migrating project must set 7 at first or its open approvals stop counting.
 5. Verdicts are detected for reporting from 4 hex characters up; shorter ones are not reported (they cannot count either).
 6. Only tested on Windows with Python 3.12; the cleanup helper has a fallback for older Pythons, not run here.
-7. The rename from `po_gate.py` to `gate.py` changes the CLI program name; commands and flags are the same.
+7. The rename from the first project's old gate script to `gate.py` changes the CLI program name; commands and flags are the same.

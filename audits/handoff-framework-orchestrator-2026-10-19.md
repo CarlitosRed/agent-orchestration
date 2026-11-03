@@ -24,19 +24,19 @@ Program Owner asked whether the Framework Orchestrator role could fail over to C
 
 ## 5. What it did NOT check
 - Whether the Program Owner has looked at #59/#60/#61/#62/#63 since my sweep - no review activity visible on any of them as of this checkpoint.
-- Whether `po-reader-orchestrator` or the SmarterForge Codex session are still alive - `ListAgents` shows no reachable peer sessions right now; the 10-16 Codex handoff warns not to infer liveness from session metadata either way. advance-po-reader#53 (that project's own name-cleanup PR) is still open, not merged.
+- Whether `document-ai-orchestrator` or the SmarterForge Codex session are still alive - `ListAgents` shows no reachable peer sessions right now; the 10-16 Codex handoff warns not to infer liveness from session metadata either way. the private project's PR (that project's own name-cleanup PR) is still open, not merged.
 - Whether SmarterForge (`charlieredondo/SmarterCommerce`) has moved since re-pinning to v0.7.0 and getting a clean review - handoff issue #52 still shows only the same 2 comments from 2026-10-16, no new activity.
-- The exact state of the Codex-only "PO session" and "SmarterForge session" interactive terminals the 10-16 handoff describes (`orchestrator-sessions/2026-10-16/`) - not re-inspected this checkpoint, per that handoff's own "do not restart automatically" caution.
+- The exact state of the Codex-only "document-AI session" and "SmarterForge session" interactive terminals the 10-16 handoff describes (`orchestrator-sessions/2026-10-16/`) - not re-inspected this checkpoint, per that handoff's own "do not restart automatically" caution.
 
 ## 6. Rules learned or reinforced this window
 - **A session's own handoff file can sit uncommitted on disk for days.** The 10-16 Codex handoff was never pushed - R7 says "write a handoff file," not "and commit it." Worth treating "commit and push the handoff" as part of the rule in practice, not just writing it locally, or the next session may never find it unless told the exact path.
 - **"Head changed" isn't automatically suspicious.** The prior handoff correctly flagged drift on #59/#60/#61 as unexplained rather than guessing - the real explanation (Auto-fix-triggered merge-conflict resolutions from a parallel Claude session) was mundane. Flag drift, don't assume malice or corruption; a live sweep resolves it faster than speculating.
 - **Same-vendor review is real evidence, just not R21-sufficient evidence.** #65's Codex-only review (427 tests, two independent audit slices, a scheduling oracle) is genuine technical rigor - it still isn't cross-vendor independence, and both the building Codex session and this session agree on that framing. Don't let thoroughness substitute for the actual rule.
-- **CLI quirks are desk facts, not framework facts** - documented in `vendors/codex.md` (#63) rather than guessed at from memory each time: the desktop-app Codex binary needs `--no-daemon`; `codex queue` (used for the PO session) rejects that same flag - different subcommands, different requirements, confirmed by the prior session, not yet independently re-tested by this one.
+- **CLI quirks are desk facts, not framework facts** - documented in `vendors/codex.md` (#63) rather than guessed at from memory each time: the desktop-app Codex binary needs `--no-daemon`; `codex queue` (used for the document-AI session) rejects that same flag - different subcommands, different requirements, confirmed by the prior session, not yet independently re-tested by this one.
 
 ## 7. Next three actions
 1. Ask the Program Owner directly: review/merge-or-close #59, #60 (close - empty diff), #61, #62, #63; decide #65 (approve as-is, request the real cross-vendor review I'm available to run, or hold).
-2. Re-sweep `po-reader-orchestrator` and SmarterForge liveness next session - both went quiet with no explanation, worth a direct check rather than assuming either finished or stalled.
+2. Re-sweep `document-ai-orchestrator` and SmarterForge liveness next session - both went quiet with no explanation, worth a direct check rather than assuming either finished or stalled.
 3. If #65 gets a go-ahead for real cross-vendor review: run it properly (fresh read of the diff, not a relay of Codex's own self-review), post a signed `**Independent Reviewer · Claude:**` comment on the PR itself per R22, not just a chat summary.
 
 ## FINAL UPDATE
