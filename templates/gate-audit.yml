@@ -4,7 +4,7 @@ name: gate audit
 # paid plan, neither of which this framework assumes a project has. This is the next best thing -
 # after every push to main, check that each new commit carries a Gate-Record line (written only by
 # the pinned `gate.py merge`). If one does not, open an issue so the Program Owner sees it within
-# minutes instead of never. Generalized from advance-po-reader's project-specific version (R23).
+# minutes instead of never. Generalized from the private project's own version (R23).
 # The framework pin and the gate config are read from the commit BEFORE the push, so a push cannot edit
 # the rules it is audited by. When that commit has no pin and config yet (the push that adds them, or the
 # first push to main) there were no rules to bypass and the run says so and stops.

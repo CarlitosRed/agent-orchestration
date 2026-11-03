@@ -2,7 +2,7 @@
 """manifest: shared helper for a project's .orchestration/verify/ scripts.
 
 Standard library only. Three operations every generated verification skill needs and was
-reinventing per project (leaks L48, L49 from the F4 trial on advance-po-reader):
+reinventing per project (leaks L48, L49 from the F4 trial on a private project):
 
   find-root   SCRIPT          resolve <root> from a script living under <root>/.orchestration/verify/,
                                by searching upward for an ancestor literally named ".orchestration"
