@@ -23,7 +23,7 @@ Proof: a PR authored by the Codex identity cannot be approved by the same identi
 
 ### P1-2 control-not-covering-itself (F2)
 Generator: an enforcer, or its rules, living in a repo the enforcer does not govern.
-Evidence: no `gate.json`, `CODEOWNERS`, tiers or CI in this repo. Of the 8 PRs since v0.7.0, only #59 and #65 had a signed Independent Reviewer comment. Branch protection exists on `main` (read-only GET today) but requires a PR with 0 approvals and no status checks, and `enforce_admins` is false. `rules/README.md` still says protection is unavailable (403, 2026-10-15); the repo went public 2026-10-16. Same shape as the `.orchestration/*` gap the PO Reader review found (`docs/decisions.md`, 2026-10-16).
+Evidence: no `gate.json`, `CODEOWNERS`, tiers or CI in this repo. Of the 8 PRs since v0.7.0, only #59 and #65 had a signed Independent Reviewer comment. Branch protection exists on `main` (read-only GET today) but requires a PR with 0 approvals and no status checks, and `enforce_admins` is false. `rules/README.md` still says protection is unavailable (403, 2026-10-15); the repo went public 2026-10-16. Same shape as the `.orchestration/*` gap the document-AI project review found (`docs/decisions.md`, 2026-10-16).
 Fix (structure + CI): `.orchestration/gate.json` for this repo with tiers (tools/gate, rules/, templates/*.yml, adapters/ = full process; skills, vendors, other tools = one round; docs, ideas, audits = light); a CI workflow running all eight suites with `-W error`; `gate-audit.yml` on main; then make the test job a required status check. One PR unlocks the CI-level fixes for four other findings (F8, F9, F10, F4).
 Proof: a PR touching `tools/gate/gate.py` without a cross-vendor `Approved at <sha>` fails its check.
 

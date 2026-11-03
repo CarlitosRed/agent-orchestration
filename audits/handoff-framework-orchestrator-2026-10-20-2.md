@@ -48,7 +48,7 @@ Not measured this session.
 ## FINAL UPDATE
 Later on 2026-10-20 (read from the repo and run logs, not relayed):
 - Main moved to `8dfcbad` with #82 (adapter spec trimmed to requirements; token text in `docs/private-framework-access.md`, dated history in `docs/adapter-history.md`). Section 9 item 3's `adapters/README.md` trim is done. Newest tag still `v0.9.1` on `69041fc`; no open PRs; inbox empty; issue #52 open.
-- The four old Codex worktrees were removed by the Program Owner. Still listed: the shared folder on `checkpoint-2026-10-19`, one extra Orchestrator worktree `workflow-templates`, and one under `advance-po-reader` (not ours).
+- The four old Codex worktrees were removed by the Program Owner. Still listed: the shared folder on `checkpoint-2026-10-19`, one extra Orchestrator worktree `workflow-templates`, and one under the private project (not ours).
 - Section 9 item 2 is done in the PR carrying this update: a probe under `-s read-only` and `-s workspace-write` ran shell commands (git ran; the file write was refused read-only and worked in workspace-write; `python` was not on Codex's PATH); `vendors/codex.md` now carries that dated status and leak row L26. A real build dispatch has still not been tried.
 - Remaining: the vendor accounts (Program Owner, when ready), then the tier-3 PR for L1 and L13; a hygiene check for broken doc references; shorten nine old `docs/decisions.md` rows; offering `v0.9.1` to the projects waits for the Program Owner.
 
