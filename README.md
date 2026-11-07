@@ -1,6 +1,6 @@
 # agent-orchestration
 
-A way of programming and managing agents. Roles, rules, a merge gate, templates, skills and a review loop that any project can run on, with any vendor's agents (Claude, Codex, others).
+A way of programming and managing agents. Roles, rules, a merge gate, templates, skills and a review loop that projects can run on, with vendor-neutral configuration. CLI dispatch has been demonstrated for Codex on one desk; Claude Code CLI dispatch and third vendors remain unproven.
 
 Owner: CarlitosRed. Public as of 2026-10-16 (`docs/decisions.md`). Contributors work by pull request and only the Program Owner approves framework changes.
 
@@ -8,7 +8,7 @@ Owner: CarlitosRed. Public as of 2026-10-16 (`docs/decisions.md`). Contributors 
 ```
 agent-orchestration (this repo, reusable core)
    roles and lanes - rules - gate - templates - skills - leaks and rule table
-   review loop that converges - verification skill - vendor adapters - ideas register
+   class-tracked review loop - verification skill - vendor adapters - ideas register
         |                                          |
         v pinned version                           v pinned version
 a private document-AI project              career-agent-hq (project)
